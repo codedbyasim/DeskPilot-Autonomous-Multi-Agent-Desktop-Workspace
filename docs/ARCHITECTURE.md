@@ -6,7 +6,7 @@
 
 This document details the internal architecture, component interactions, safety mechanisms, and Amazon Bedrock integration powering **DeskPilot**.
 
-![DeskPilot Architecture Overview](../assets/screenshots/dashboard.png)
+![DeskPilot Enterprise Architecture Diagram](../assets/architecture_diagram.png)
 
 ---
 
@@ -20,49 +20,83 @@ DeskPilot is architected around a **decoupled hybrid desktop model**:
 - **Tool Execution Framework**: 28 native desktop tools covering file management, Word/Excel document creation, PDF analysis, web research, and system software installations.
 
 ```mermaid
-graph TD
-    subgraph UI ["Frontend Interface (HTML5 / Vanilla CSS / JS)"]
-        Dashboard["Workspace Dashboard"]
-        Chat["Conversational Chat Stream"]
-        Builder["Custom Agent Builder"]
-        ApprovalModal["HITL Approval Modal"]
+flowchart TB
+    %% Master Styles
+    classDef runtime fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef agent fill:#431407,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+    classDef tool fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef state fill:#701a75,stroke:#f472b6,stroke-width:2px,color:#f8fafc;
+    classDef client fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+
+    subgraph Packaging ["Runtimes & Packaging"]
+        direction TB
+        Spec["Windows Packaging Executable Installer [deskpilot.spec]"]
+        Settings["Settings & Credentials Runtime Configuration [settings.py]"]
+        Main["Unified Launcher Python Entry Point [main.py]"]
+        Docker["Container Deployment Docker Runtime [Dockerfile]"]
+
+        Spec -->|packages| Main
     end
 
-    subgraph Bridge ["Bridge & API Layer"]
-        PyBridge["JS Bridge Client (bridge.js)"]
-        FlaskAPI["Flask REST & SSE Server (server.py)"]
-        EventBus["Internal Event Dispatcher"]
+    subgraph AgentRuntime ["Agent Runtime & Intelligence"]
+        direction TB
+        Manifests["Agent Manifests JSON Persona Definition (8 Built-in Agents)"]
+        Builder["Custom Agent Builder Model-Assisted Builder [builder.py]"]
+        Registry["Agent Registry Manifest Store [registry.py]"]
+        Orchestrator["Agent Orchestrator Strands Runtime [orchestrator.py]"]
+        Bedrock["Amazon Bedrock Nova Pro External Model Service"]
+
+        Manifests -->|defines persona & tools| Registry
+        Builder -->|activates reviewed agent| Registry
+        Registry -->|selected definition| Orchestrator
+        Orchestrator <-->|reasoning & tool calls| Bedrock
     end
 
-    subgraph Core ["Backend Core (Python 3.12)"]
-        Registry["Agent Registry (JSON Store)"]
-        Orchestrator["Agent Orchestrator"]
-        TrustEngine["Trust Tier Classifier & HITL Gate"]
-        SessionMgr["Chat Session Manager"]
+    subgraph Tools ["Privileged Tools & Autonomy Gate"]
+        direction TB
+        TrustGate{"Trust Policy Approval Gate [trust.py]"}
+        Adapters["Tool Domains Local Capability Adapters (File, Word, PDF, Web, System) [file_tools.py]"]
+        Deliverables["Office Deliverables Generation & Verification Tools [excel_tools.py & word_tools.py]"]
+
+        TrustGate -->|permits side effects| Adapters
+        Adapters -->|office deliverables| Deliverables
     end
 
-    subgraph AWS ["Amazon Bedrock Foundation Models"]
-        NovaPro["Amazon Nova Pro (amazon.nova-pro-v1:0)"]
-        BedrockAPI["Converse & Streaming API"]
+    subgraph LocalState ["Local State & Persistence"]
+        direction TB
+        SavePref[("Save Preferences Local Store [save_preferences.json]")]
+        ChatStore[("Chat Sessions JSON Store [session_manager.py]")]
     end
 
-    subgraph Tools ["Autonomous Tool Ecosystem (28 Tools)"]
-        FileTools["File Tools (organize_files, move, read, write)"]
-        DocTools["Document Tools (Word, Excel with formulas)"]
-        PDFTools["PDF Tools (pdfplumber, PyMuPDF)"]
-        WebTools["Web Research (DuckDuckGo, scraping)"]
-        SysTools["System Tools (Winget installer)"]
+    subgraph ClientSurfaces ["Client Surfaces & Presentation"]
+        direction TB
+        DesktopHost["Desktop Shell pywebview Host [app.py]"]
+        FlaskServer["Web API & SSE Flask Server [server.py]"]
+        SPA["Workspace UI Vanilla JS SPA [app.js]"]
+        BridgeJS["Client Bridge Transport Adapter [bridge.js]"]
+        BridgePY["Native Bridge & Approvals Python Bridge [bridge.py]"]
+
+        DesktopHost -->|hosts| SPA
+        FlaskServer -->|serves| SPA
+        SPA -->|requests & events| BridgeJS
+        BridgeJS -->|desktop transport| BridgePY
+        BridgeJS -->|HTTP/SSE transport| FlaskServer
     end
 
-    UI <--> PyBridge
-    UI <--> FlaskAPI
-    PyBridge <--> EventBus
-    FlaskAPI <--> EventBus
-    EventBus <--> Core
-    Orchestrator <--> AWS
-    Orchestrator <--> Tools
-    Tools -.->|Verification & Approval| TrustEngine
-    TrustEngine -.->|Approval Prompt Event| UI
+    %% Cross-Subsystem Interconnections
+    Settings -.->|credentials| Orchestrator
+    Main -->|default desktop mode| DesktopHost
+    Main -->|web mode| FlaskServer
+    Docker -->|runs web mode| FlaskServer
+
+    Orchestrator -->|authorized invocation| Adapters
+    Orchestrator -->|requests action authorization| TrustGate
+    BridgePY -->|approval decisions| TrustGate
+    Orchestrator -->|streams events| FlaskServer
+    Orchestrator -->|reads & writes history| ChatStore
+
+    Adapters -.->|uses destination preference| SavePref
+    Deliverables -->|submits work / deliverables| SPA
 ```
 
 ---

@@ -89,6 +89,8 @@ DeskPilot is engineered from the ground up around **Amazon Web Services (AWS)** 
 
 ## 🏗️ System Architecture
 
+![DeskPilot Enterprise Software Architecture](assets/architecture_diagram.png)
+
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                   DeskPilot Workspace Shell (pywebview / Web)           │
