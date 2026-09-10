@@ -1,0 +1,40 @@
+# DeskPilot — Multi-Agent Desktop Assistant
+# Requirements for pywebview Desktop Shell + Strands Agents + Bedrock Backend
+
+# AWS & Agent SDK
+strands-agents
+strands-agents-tools
+boto3
+botocore
+
+# Desktop Shell (HTML/CSS/JS in native WebView2)
+pywebview>=6.0.0
+clr_loader
+pythonnet
+
+# Web & API Server
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Document Tools
+python-docx
+openpyxl
+reportlab
+
+# PDF Tools
+pdfplumber
+PyMuPDF
+
+# Web Research Tools
+requests
+beautifulsoup4
+lxml
+duckduckgo-search
+
+# System & Utilities
+python-dotenv
+Pillow
+pydantic
+
+# Packaging
+pyinstaller

@@ -1,0 +1,306 @@
+/* DeskPilot Custom Stylesheet
+ * Complementing Tailwind CSS for smooth animations, custom scrollbars, and card micro-interactions.
+ */
+
+/* ── Custom Dark Scrollbars ────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 9999px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.4);
+}
+
+/* ── Active Sidebar Link Highlight ─────────────────────────────────────── */
+.sidebar-link {
+    color: #94A3B8;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-link:hover {
+    color: #F8FAFC;
+    background-color: rgba(30, 41, 59, 0.6);
+}
+
+.sidebar-link.active {
+    color: #FFFFFF;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.25) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
+}
+
+/* ── Agent Card Interactive Effects ────────────────────────────────────── */
+.agent-card {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.agent-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.agent-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.agent-card:hover::before {
+    opacity: 1;
+}
+
+/* ── Agent Specific Card Accents ───────────────────────────────────────── */
+.agent-card-personal:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(16, 185, 129, 0.15);
+}
+
+.agent-card-finance:hover {
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(168, 85, 247, 0.15);
+}
+
+.agent-card-health:hover {
+    border-color: rgba(244, 63, 94, 0.4);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(244, 63, 94, 0.15);
+}
+
+.agent-card-work:hover {
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(59, 130, 246, 0.15);
+}
+
+/* ── Pulse Glow Effects ────────────────────────────────────────────────── */
+.pulse-glow-green {
+    animation: greenPulse 2.5s infinite;
+}
+
+@keyframes greenPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+    }
+}
+
+.pulse-glow-amber {
+    animation: amberPulse 2.5s infinite;
+}
+
+@keyframes amberPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+    }
+}
+
+/* ── Modal Transitions ─────────────────────────────────────────────────── */
+.modal-backdrop {
+    background-color: rgba(9, 13, 22, 0.85);
+    backdrop-filter: blur(8px);
+    transition: opacity 0.2s ease-out;
+}
+
+.modal-container {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
+}
+
+.modal-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-hidden .modal-container {
+    transform: scale(0.96) translateY(8px);
+}
+
+/* ── Running Task Spinners & Badges ────────────────────────────────────── */
+@keyframes spinSlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+    animation: spinSlow 3s linear infinite;
+}
+
+/* ── View Panels & Navigation ───────────────────────────────────────────── */
+.view-panel {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.view-hidden {
+    display: none !important;
+}
+
+/* ── Additional Card Themes (Custom Agents) ────────────────────────────── */
+.agent-card-indigo:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(99, 102, 241, 0.2);
+}
+
+.agent-card-amber:hover {
+    border-color: rgba(245, 158, 11, 0.4);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 0 20px -3px rgba(245, 158, 11, 0.2);
+}
+
+/* ── Custom Agent Builder Permission Chips ─────────────────────────────── */
+.permission-chip {
+    transition: all 0.15s ease;
+    cursor: pointer;
+    user-select: none;
+}
+
+.permission-chip:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    background-color: rgba(30, 41, 59, 0.7);
+}
+
+.permission-chip.selected {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.45);
+}
+
+/* ── Deliverables File Card ────────────────────────────────────────────── */
+.deliverable-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+}
+
+.deliverable-card:hover {
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 0 12px 28px -4px rgba(99, 102, 241, 0.2);
+}
+
+/* ── Conversational Chat Workspace (ChatGPT / Gemini Style) ─────────────── */
+.chat-session-item {
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.chat-session-item:hover {
+    background-color: rgba(30, 41, 59, 0.6);
+}
+
+.chat-session-item.active {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.chat-session-item .delete-session-btn {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.chat-session-item:hover .delete-session-btn {
+    opacity: 1;
+}
+
+.chat-bubble-user {
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+    box-shadow: 0 4px 15px -2px rgba(79, 70, 229, 0.3);
+    border-radius: 18px 18px 4px 18px;
+}
+
+.chat-bubble-assistant {
+    background: rgba(14, 21, 38, 0.85);
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    border-radius: 18px 18px 18px 4px;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
+}
+
+.chat-markdown p {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.chat-markdown p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-markdown ul, .chat-markdown ol {
+    margin-left: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.chat-markdown li {
+    margin-bottom: 0.25rem;
+}
+
+.chat-markdown code {
+    background: rgba(15, 23, 42, 0.8);
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.chat-markdown pre {
+    background: #020617;
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.chat-markdown pre code {
+    background: transparent;
+    padding: 0;
+    border: none;
+}
+
+.chat-markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+    font-size: 0.85rem;
+}
+
+.chat-markdown th, .chat-markdown td {
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+}
+
+.chat-markdown th {
+    background: rgba(30, 41, 59, 0.5);
+    color: #E2E8F0;
+}
+
+.chat-tool-step-chip {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    transition: all 0.2s ease;
+}
+

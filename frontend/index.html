@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#090D16]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeskPilot — Multi-Agent Desktop Assistant</title>
+    <!-- Modern Google Font: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'Inter', 'sans-serif'],
+                        mono: ['Consolas', 'Courier New', 'monospace']
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                            950: '#090d16'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- DeskPilot Stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="h-full flex overflow-hidden text-slate-200 antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- ── Sidebar Navigation ──────────────────────────────────────────────── -->
+    <aside class="w-64 bg-[#0E1526] border-r border-slate-800/80 flex flex-col justify-between flex-shrink-0 select-none">
+        <div class="p-6">
+            <!-- App Branding Header -->
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 p-0.5 shadow-lg shadow-indigo-600/20 flex items-center justify-center">
+                    <img src="assets/logo.png" alt="DeskPilot Logo" class="w-full h-full object-contain rounded-[10px]"
+                         onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polygon points=\'12 2 2 7 12 12 22 7 12 2\'/><polyline points=\'2 17 12 22 22 17\'/><polyline points=\'2 12 12 17 22 12\'/></svg>'">
+                </div>
+                <div>
+                    <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-1.5 leading-tight">
+                        DeskPilot
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.0</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400 font-medium">Autonomous Multi-Agent</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links with Data-View Routing -->
+            <nav class="space-y-1">
+                <a href="#home" data-view="home" class="sidebar-link active flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Home
+                </a>
+                <a href="#agents" data-view="agents" class="sidebar-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                    <i data-lucide="bot" class="w-4 h-4"></i> My Agents
+                </a>
+                <a href="#chat" data-view="chat" class="sidebar-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                    <i data-lucide="message-square" class="w-4 h-4"></i> Chat
+                </a>
+                <a href="#tasks" data-view="tasks" class="sidebar-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                    <i data-lucide="check-square" class="w-4 h-4"></i> Tasks
+                </a>
+                <a href="#history" data-view="history" class="sidebar-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                    <i data-lucide="history" class="w-4 h-4"></i> History & Audit
+                </a>
+                <a href="#settings" data-view="settings" class="sidebar-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                    <i data-lucide="settings" class="w-4 h-4"></i> Settings
+                </a>
+            </nav>
+
+            <!-- Active Agents Section in Sidebar -->
+            <div class="mt-8 pt-6 border-t border-slate-800/80">
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Agents</span>
+                    <span id="active-agents-badge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">4</span>
+                </div>
+                <div id="sidebar-agents-list" class="space-y-1">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer Status -->
+        <div class="p-4 border-t border-slate-800/80 bg-slate-900/30">
+            <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                    <span class="text-slate-300 font-medium">Amazon Bedrock</span>
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono">Nova Pro</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main Workspace ──────────────────────────────────────────────────── -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+        <!-- Top Navigation Bar -->
+        <header class="h-16 border-b border-slate-800/80 bg-[#0E1526]/80 backdrop-blur px-8 flex items-center justify-between flex-shrink-0">
+            <!-- Search Bar -->
+            <div class="relative w-96">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input id="global-search-input" type="text" placeholder="Search agents, tasks, deliverables, or commands..."
+                       class="w-full bg-slate-900/70 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+            </div>
+
+            <!-- Top Right Action Controls -->
+            <div class="flex items-center gap-3">
+                <button id="btn-save-location-header" onclick="window.DeskPilotApp.openSaveLocationModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-500/25 text-xs font-medium transition-all cursor-pointer" title="Configure file save location">
+                    <i data-lucide="folder-output" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>Save to: <span id="header-save-loc-label" class="font-bold text-white">Desktop</span></span>
+                </button>
+                <div id="system-status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>System Ready</span>
+                </div>
+                <button id="btn-notifications" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 relative">
+                    <i data-lucide="bell" class="w-4 h-4"></i>
+                    <span class="w-2 h-2 rounded-full bg-indigo-500 absolute top-1.5 right-1.5"></span>
+                </button>
+                <div class="flex items-center gap-2.5 pl-3 border-l border-slate-800">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                        DP
+                    </div>
+                    <div class="text-left leading-tight hidden sm:block">
+                        <div class="text-xs font-semibold text-white">DeskPilot User</div>
+                        <div class="text-[10px] text-slate-400">AWS Hackathon 2026</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Main Content -->
+        <main class="flex-1 overflow-y-auto p-8 bg-[#090D16]">
+
+            <!-- ── VIEW 1: HOME DASHBOARD ──────────────────────────────────────── -->
+            <div id="view-home" class="view-panel space-y-8">
+                <!-- Hero Banner: Meet Your AI Agents -->
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-950/60 via-slate-900/80 to-purple-950/50 border border-indigo-500/20 p-8 shadow-xl">
+                    <div class="relative z-10 max-w-2xl">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-3">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Autonomous Multi-Agent Workspace
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+                            Meet Your AI Agents
+                        </h2>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            They handle your daily tasks, your work, your health, your finances, and anything else you teach them to do, and only interrupt you when a real decision is needed.
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <button id="btn-create-agent" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/25">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Create Custom Agent
+                            </button>
+                            <button id="btn-template-gallery" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700/60 transition-all">
+                                <i data-lucide="layers" class="w-4 h-4"></i> Agent Templates
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Decorative background elements -->
+                    <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute right-32 top-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                </div>
+
+                <!-- Agent Grid Section -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i> Active Assistants
+                        </h3>
+                        <button onclick="window.DeskPilotApp.switchView('agents')" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
+                            Manage All Agents →
+                        </button>
+                    </div>
+
+                    <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                        <!-- Loaded dynamically via app.js -->
+                    </div>
+                </div>
+
+                <!-- Activity & Actions Two-Column Feed -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- Recent Activity Feed (2 Cols) -->
+                    <div class="lg:col-span-2 bg-[#0E1526] border border-slate-800/80 rounded-2xl p-6">
+                        <div class="flex items-center justify-between mb-5">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> Recent Activity
+                            </h3>
+                            <button onclick="window.DeskPilotApp.switchView('history')" class="text-xs text-slate-400 hover:text-slate-200">
+                                Full Audit History →
+                            </button>
+                        </div>
+                        <div id="activity-feed" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Right Quick Panel (1 Col) -->
+                    <div class="bg-[#0E1526] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                                <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Trust & Safety Model
+                            </h3>
+                            <div class="space-y-2.5 text-xs">
+                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                        <span class="text-slate-300 font-medium">Green Tier</span>
+                                    </div>
+                                    <span class="text-slate-400 text-[11px]">Auto-executes</span>
+                                </div>
+                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                        <span class="text-slate-300 font-medium">Yellow Tier</span>
+                                    </div>
+                                    <span class="text-slate-400 text-[11px]">Requires Confirm</span>
+                                </div>
+                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                                        <span class="text-slate-300 font-medium">Red Tier</span>
+                                    </div>
+                                    <span class="text-slate-400 text-[11px]">Strict Approval</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-800/80">
+                            <div class="text-[11px] text-slate-500 flex items-center justify-between">
+                                <span>DeskPilot v2.0.0</span>
+                                <span>pywebview + Bedrock</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ── VIEW 2: MY AGENTS ───────────────────────────────────────────── -->
+            <div id="view-agents" class="view-panel space-y-6 view-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="bot" class="w-5 h-5 text-indigo-400"></i> My AI Agents
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Manage your active, template, and custom created assistants.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="window.DeskPilotApp.openBuilderModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Create Custom Agent
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
+                    <button onclick="window.DeskPilotApp.filterAgentsCategory('all')" id="tab-agent-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
+                        All Agents (<span id="count-agents-all">0</span>)
+                    </button>
+                    <button onclick="window.DeskPilotApp.filterAgentsCategory('default')" id="tab-agent-default" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200">
+                        Built-In (4)
+                    </button>
+                    <button onclick="window.DeskPilotApp.filterAgentsCategory('custom')" id="tab-agent-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200">
+                        Custom (<span id="count-agents-custom">0</span>)
+                    </button>
+                    <button onclick="window.DeskPilotApp.openTemplateGallery()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-indigo-300 ml-auto flex items-center gap-1.5">
+                        <i data-lucide="layers" class="w-3.5 h-3.5"></i> Template Gallery
+                    </button>
+                </div>
+
+                <!-- Full Agents Catalog Grid -->
+                <div id="catalog-agents-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+
+            <!-- ── VIEW 3: TASKS ───────────────────────────────────────────────── -->
+            <div id="view-tasks" class="view-panel space-y-6 view-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="check-square" class="w-5 h-5 text-indigo-400"></i> Active & Recent Tasks
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Monitor autonomous agent executions in real-time.</p>
+                    </div>
+                </div>
+
+                <div id="tasks-list" class="space-y-4">
+                    <div class="p-8 text-center bg-[#0E1526] rounded-2xl border border-slate-800">
+                        <i data-lucide="check-circle" class="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-70"></i>
+                        <h4 class="text-sm font-semibold text-white">No Background Tasks Currently Running</h4>
+                        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                            Launch a task from any agent card on the Home dashboard or My Agents tab.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── VIEW 4: HISTORY & AUDIT ─────────────────────────────────────── -->
+            <div id="view-history" class="view-panel space-y-6 view-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="history" class="w-5 h-5 text-indigo-400"></i> Audit History Trail
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Verifiable JSON-lines audit trail of every tool invocation and agent decision.</p>
+                    </div>
+                    <button onclick="window.DeskPilotApp.refreshAuditHistory()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh Audit
+                    </button>
+                </div>
+
+                <!-- Audit Trail Table -->
+                <div class="bg-[#0E1526] border border-slate-800/80 rounded-2xl overflow-hidden shadow-lg">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="py-3 px-4 font-bold">Time</th>
+                                    <th class="py-3 px-4 font-bold">Agent</th>
+                                    <th class="py-3 px-4 font-bold">Tool Executed</th>
+                                    <th class="py-3 px-4 font-bold">Trust Tier</th>
+                                    <th class="py-3 px-4 font-bold">Status</th>
+                                    <th class="py-3 px-4 font-bold">Result Summary</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── VIEW 5: SETTINGS ────────────────────────────────────────────── -->
+            <div id="view-settings" class="view-panel space-y-6 view-hidden">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i data-lucide="settings" class="w-5 h-5 text-indigo-400"></i> Settings & Safety Policies
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">System configuration, Bedrock LLM settings, and Trust-Tier parameters.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                    <!-- LLM & Orchestrator Config -->
+                    <div class="p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i> Amazon Bedrock Engine
+                        </h3>
+                        <div class="space-y-2 text-slate-300">
+                            <div class="flex justify-between py-1.5 border-b border-slate-800">
+                                <span class="text-slate-400">Foundation Model</span>
+                                <span class="font-mono text-indigo-300">amazon.nova-pro-v1:0</span>
+                            </div>
+                            <div class="flex justify-between py-1.5 border-b border-slate-800">
+                                <span class="text-slate-400">Region</span>
+                                <span class="font-mono text-slate-200">us-east-1</span>
+                            </div>
+                            <div class="flex justify-between py-1.5 border-b border-slate-800">
+                                <span class="text-slate-400">Agent Framework</span>
+                                <span class="font-mono text-slate-200">Strands Agents SDK (Python)</span>
+                            </div>
+                            <div class="flex justify-between py-1.5">
+                                <span class="text-slate-400">Output Directory</span>
+                                <span class="font-mono text-slate-300 truncate max-w-[200px]" title="C:\Users\Public\DeskPilot_Output">C:\Users\Public\DeskPilot_Output</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Safety & Winget Allowlist -->
+                    <div class="p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i> Winget Software Allow-List
+                        </h3>
+                        <p class="text-slate-400 leading-relaxed text-[11px]">
+                            DeskPilot strictly prohibits arbitrary executable downloads. Software installations can ONLY occur via Windows Package Manager (`winget`) targeting this pre-approved allow-list:
+                        </p>
+                        <div class="flex flex-wrap gap-1.5 pt-1">
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Git.Git</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Mozilla.Firefox</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Google.Chrome</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Microsoft.VisualStudioCode</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">7zip.7zip</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Notepad++.Notepad++</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">VideoLAN.VLC</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Obsidian.Obsidian</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">SlackTechnologies.Slack</span>
+                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Zoom.Zoom</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── VIEW 6: CONVERSATIONAL CHAT (CHATGPT/GEMINI STYLE) ────────────────── -->
+            <div id="view-chat" class="view-panel view-hidden -m-8 h-[calc(100vh-4rem)] flex overflow-hidden">
+                <!-- Left Column: Recent Chats Sidebar -->
+                <div class="w-72 bg-[#0B101D] border-r border-slate-800/80 flex flex-col flex-shrink-0 h-full">
+                    <!-- New Chat Header -->
+                    <div class="p-4 border-b border-slate-800/80 space-y-3">
+                        <button id="btn-new-chat" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/20">
+                            <i data-lucide="plus" class="w-4 h-4"></i> New Chat
+                        </button>
+                        <div class="relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                            <input id="chat-search-input" type="text" placeholder="Search recent chats..."
+                                   class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50">
+                        </div>
+                    </div>
+
+                    <!-- Recent Chats Session List -->
+                    <div class="flex-1 overflow-y-auto p-3 space-y-1" id="chat-sessions-list">
+                        <!-- Populated dynamically via app.js -->
+                    </div>
+
+                    <!-- Session List Footer Stats -->
+                    <div class="p-3 border-t border-slate-800/80 text-[11px] text-slate-500 flex items-center justify-between">
+                        <span>Recent Sessions</span>
+                        <span id="chat-session-count" class="font-mono text-slate-400">0</span>
+                    </div>
+                </div>
+
+                <!-- Right Column: Active Conversation Thread -->
+                <div class="flex-1 flex flex-col h-full bg-[#090D16] relative overflow-hidden">
+                    <!-- Chat Header -->
+                    <div class="h-14 border-b border-slate-800/80 bg-[#0E1526]/70 backdrop-blur px-6 flex items-center justify-between flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div id="chat-header-avatar" class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                                <i data-lucide="bot" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <select id="chat-agent-select" class="bg-slate-900 border border-slate-700 text-xs font-bold text-white rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                        <!-- Populated dynamically with active agents -->
+                                    </select>
+                                    <span id="chat-agent-badge" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Ready</span>
+                                </div>
+                                <div id="chat-agent-description" class="text-[11px] text-slate-400 truncate max-w-md">Personal Assistant</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                <span>Bedrock Nova Pro</span>
+                            </div>
+                            <button id="btn-delete-current-chat" title="Delete conversation" class="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages Container -->
+                    <div id="chat-messages-container" class="flex-1 overflow-y-auto p-6 space-y-6">
+                        <!-- Empty state or messages rendered dynamically -->
+                    </div>
+
+                    <!-- Tool Execution Live Status Pill (Shown while tool runs) -->
+                    <div id="chat-tool-live-pill" class="hidden px-6 py-2.5 bg-indigo-950/50 border-t border-indigo-500/20 flex items-center gap-3 text-xs">
+                        <span class="animate-spin text-indigo-400">⚙</span>
+                        <span id="chat-tool-live-text" class="text-indigo-300 font-mono">Executing tool...</span>
+                    </div>
+
+                    <!-- Bottom Input Area -->
+                    <div class="p-4 border-t border-slate-800/80 bg-[#0E1526]/80 backdrop-blur flex-shrink-0 space-y-3">
+                        <!-- Quick Suggestion Chips -->
+                        <div id="chat-quick-suggestions" class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                            <!-- Populated dynamically based on agent -->
+                        </div>
+
+                        <!-- Input Box -->
+                        <div class="relative flex items-end gap-2 bg-slate-900 border border-slate-800 focus-within:border-indigo-500/50 rounded-2xl p-2.5 transition-all shadow-lg">
+                            <textarea id="chat-input-textarea" rows="1" placeholder="Ask anything, request research, or describe a task (Shift+Enter for new line)..."
+                                      class="flex-1 max-h-36 bg-transparent px-3 py-1 text-sm text-slate-200 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"></textarea>
+                            <button id="btn-send-chat" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="text-[10px] text-center text-slate-500">
+                            DeskPilot Multi-Agent Workspace • Powered by Strands Agents SDK & Amazon Bedrock
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ── Task Execution Modal ─────────────────────────────────────────── -->
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-lg bg-[#0E1526] border border-slate-700/80 rounded-2xl shadow-2xl p-6 relative">
+            <button id="btn-close-task-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-agent-badge" class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                    <i id="modal-agent-icon" data-lucide="bot" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 id="modal-agent-name" class="font-bold text-white text-base">Run Agent Task</h3>
+                    <p id="modal-agent-role" class="text-xs text-slate-400">Autonomous Execution</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Task Instructions</label>
+                    <textarea id="task-instruction-input" rows="4"
+                        class="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                        placeholder="Describe the task you want this agent to complete..."></textarea>
+                </div>
+
+                <!-- Example Suggestions -->
+                <div id="modal-suggestions-box">
+                    <span class="text-[11px] font-semibold text-slate-400 block mb-1.5">Example Tasks:</span>
+                    <div id="modal-suggestions-list" class="flex flex-wrap gap-1.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Live Task Execution Log Box (Initially Hidden) -->
+                <div id="task-live-box" class="hidden p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2 text-indigo-400 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+                            <span id="task-status-text">Executing task...</span>
+                        </div>
+                        <span id="task-elapsed-timer" class="text-[10px] text-slate-500 font-mono">0s</span>
+                    </div>
+                    <div id="task-log-stream" class="text-[11px] text-slate-300 font-mono max-h-32 overflow-y-auto space-y-1">
+                        <!-- Streamed step messages -->
+                    </div>
+
+                    <!-- Deliverable Action Card (Initially Hidden) -->
+                    <div id="task-deliverable-card" class="hidden p-3 rounded-xl deliverable-card flex items-center justify-between mt-2">
+                        <div class="flex items-center gap-2.5 overflow-hidden">
+                            <div id="deliverable-icon-badge" class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                            </div>
+                            <div class="truncate">
+                                <span class="text-[10px] text-indigo-300 font-semibold block">Generated Deliverable</span>
+                                <span id="deliverable-filename" class="text-xs text-white font-medium truncate block">Report.docx</span>
+                            </div>
+                        </div>
+                        <button id="btn-open-deliverable" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 flex-shrink-0 shadow-sm">
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open File
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-end gap-3">
+                <button id="btn-cancel-task" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+                    Cancel
+                </button>
+                <button id="btn-submit-task" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i> Run Agent
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Custom Agent Builder Modal (Section 9) ────────────────────────── -->
+    <div id="builder-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-2xl bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-6 relative max-h-[90vh] flex flex-col">
+            <button id="btn-close-builder-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Builder Step 1: Prompt Description Input -->
+            <div id="builder-step-1" class="space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Create Custom AI Agent</h3>
+                        <p class="text-xs text-slate-400">Describe what you need in plain English — Amazon Bedrock will draft your agent.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">What should this assistant do?</label>
+                    <textarea id="builder-input-desc" rows="4"
+                        class="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                        placeholder="e.g. A legal contract reviewer that scans PDF agreements, extracts key terms, compares clauses against standard templates, and compiles a comprehensive Word report..."></textarea>
+                </div>
+
+                <div>
+                    <span class="text-[11px] font-semibold text-slate-400 block mb-1.5">Quick Inspiration Starters:</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" class="builder-starter-chip text-[11px] px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/50 transition-colors text-left"
+                                data-prompt="Extract invoice totals and vendor receipts from PDFs into an Excel spreadsheet with summary metrics">
+                            Extract invoice totals from PDFs into Excel
+                        </button>
+                        <button type="button" class="builder-starter-chip text-[11px] px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/50 transition-colors text-left"
+                                data-prompt="Research SaaS project management competitors and compile a client-ready comparison report in Word">
+                            Research SaaS competitors and build Word report
+                        </button>
+                        <button type="button" class="builder-starter-chip text-[11px] px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/50 transition-colors text-left"
+                                data-prompt="Desktop workspace organizer that scans folders, checks file sizes, and organizes old files into archive folders">
+                            Desktop workspace scanner and organizer
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                    <button id="btn-cancel-builder" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200">
+                        Cancel
+                    </button>
+                    <button id="btn-generate-draft" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-2">
+                        <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Draft Agent with Bedrock
+                    </button>
+                </div>
+            </div>
+
+            <!-- Builder Step 2: Confirmation & Permission Review Screen (MANDATORY per Section 9) -->
+            <div id="builder-step-2" class="space-y-4 hidden overflow-y-auto pr-1">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <div id="builder-preview-icon-box" class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                            <i id="builder-preview-icon" data-lucide="sparkles" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-white">Review & Confirm Permissions</h3>
+                            <p class="text-xs text-amber-400/90 font-medium">Verify capabilities before activating this agent in your workspace.</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase">Custom Draft</span>
+                </div>
+
+                <!-- Agent Details Form -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Agent Name</label>
+                        <input id="builder-draft-name" type="text" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Color Theme</label>
+                        <select id="builder-draft-color" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                            <option value="indigo">Indigo</option>
+                            <option value="green">Green</option>
+                            <option value="purple">Purple</option>
+                            <option value="blue">Blue</option>
+                            <option value="red">Red</option>
+                            <option value="amber">Amber</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-400 mb-1">Description</label>
+                    <input id="builder-draft-desc" type="text" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-400 mb-1">System Persona & Operating Rules</label>
+                    <textarea id="builder-draft-persona" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"></textarea>
+                </div>
+
+                <!-- Plain-Language Tool Permissions -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Authorized Tool Permissions</label>
+                        <span class="text-[10px] text-slate-500">Uncheck any tool you do not wish to grant</span>
+                    </div>
+                    <div id="builder-tools-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Populated dynamically with plain-language permission cards -->
+                    </div>
+                </div>
+
+                <!-- Mandatory Trust Tier Notice -->
+                <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>
+                    <span>All tools operate under DeskPilot's global safety guardrails. Sensitive actions still require confirmation.</span>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+                    <button id="btn-builder-back" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+                        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Prompt
+                    </button>
+                    <button id="btn-builder-confirm" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i> Confirm & Activate Agent
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Trust Approval Required Modal ───────────────────────────────────── -->
+    <div id="approval-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-md bg-[#0E1526] border border-amber-500/40 rounded-2xl shadow-2xl p-6 relative">
+            <div class="flex items-start gap-3.5 mb-4">
+                <div id="approval-badge-icon" class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
+                    <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-white text-sm">Human Approval Required</h3>
+                        <span id="approval-tier-tag" class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase">YELLOW TIER</span>
+                    </div>
+                    <p id="approval-description" class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        An agent has requested permission to perform a sensitive action.
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Agent:</span>
+                    <span id="approval-agent-name" class="font-semibold text-slate-200">Work Agent</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Action:</span>
+                    <span id="approval-action-name" class="font-mono text-amber-400">delete_file</span>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2.5">
+                <button id="btn-deny-approval" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all flex items-center gap-1.5">
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Deny
+                </button>
+                <button id="btn-approve-all" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/35 text-indigo-300 border border-indigo-500/40 transition-all flex items-center gap-1.5" title="Approve this and all subsequent file moves in this operation">
+                    <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Approve All
+                </button>
+                <button id="btn-confirm-approval" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-1.5">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Approve
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Template Gallery Modal ──────────────────────────────────────────── -->
+    <div id="templates-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-3xl bg-[#0E1526] border border-slate-700/80 rounded-2xl shadow-2xl p-6 relative max-h-[85vh] flex flex-col">
+            <button id="btn-close-templates-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="mb-5">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="layers" class="w-5 h-5 text-indigo-400"></i> Agent Template Gallery
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">
+                    Pre-configured agents designed for specialized workflows. Add them to your workspace with 1 click.
+                </p>
+            </div>
+
+            <div id="templates-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-y-auto pr-1">
+                <!-- Populated dynamically via app.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Save Location Preference Modal ───────────────────────────────────── -->
+    <div id="save-location-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-md bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-6 relative">
+            <button id="btn-close-save-location-modal" onclick="window.DeskPilotApp.closeSaveLocationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="flex items-start gap-3.5 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                    <i data-lucide="folder-check" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-white text-sm">Save Deliverables Destination</h3>
+                    <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Where should generated spreadsheets, Word reports, and files be saved?
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-2 my-4">
+                <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all">
+                    <input type="radio" name="save_dest_option" value="Desktop" class="text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700" checked>
+                    <div class="text-xs">
+                        <span class="font-semibold text-white block">🖥️ Desktop</span>
+                        <span class="text-[10px] text-slate-400">Instantly visible and accessible on your Desktop</span>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all">
+                    <input type="radio" name="save_dest_option" value="Documents" class="text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+                    <div class="text-xs">
+                        <span class="font-semibold text-white block">📁 Documents</span>
+                        <span class="text-[10px] text-slate-400">Saved in your Windows Documents folder</span>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all">
+                    <input type="radio" name="save_dest_option" value="DeskPilot_Output" class="text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+                    <div class="text-xs">
+                        <span class="font-semibold text-white block">📂 Dedicated DeskPilot_Output</span>
+                        <span class="text-[10px] text-slate-400">Centralized DeskPilot Output folder</span>
+                    </div>
+                </label>
+            </div>
+
+            <!-- "Always save there" option as requested by the user -->
+            <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 my-4">
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input id="chk-always-save-there" type="checkbox" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-slate-700" checked>
+                    <span class="text-xs font-semibold text-indigo-200">Always save there</span>
+                </label>
+                <p class="text-[10px] text-slate-400 mt-1 pl-6">
+                    Saves all future files here directly without asking each time. You can change this anytime.
+                </p>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button onclick="window.DeskPilotApp.closeSaveLocationModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200">
+                    Cancel
+                </button>
+                <button onclick="window.DeskPilotApp.saveLocationPreferencesSubmit()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Save Preference
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/bridge.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Initialize Lucide icons on page load
+        if (window.lucide) lucide.createIcons();
+    </script>
+</body>
+</html>

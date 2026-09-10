@@ -1,0 +1,37 @@
+# ==============================================================================
+# DeskPilot .dockerignore
+# ==============================================================================
+
+# Git
+.git
+.gitignore
+
+# Environment files (injected at runtime via env_file)
+.env
+.env.*
+*.env
+
+# Local build and packaging artifacts
+build/
+dist/
+installer/
+
+# Python cache & tests
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+tests/
+htmlcov/
+.coverage
+
+# Logs & temp data
+logs/
+*.log
+*.jsonl
+
+# IDE configurations
+.vscode/
+.idea/
+.gemini/

@@ -1,0 +1,372 @@
+"""
+DeskPilot — Dynamic Multi-Agent Orchestrator
+Uses the Strands Agents SDK and Amazon Bedrock to dynamically instantiate and run
+any agent from the registry (default, template, or custom) with strict tool-whitelisting.
+"""
+
+import os
+import json
+import threading
+from pathlib import Path
+from datetime import datetime
+from typing import Callable, Optional, Dict, Any, List
+
+from strands import Agent
+from strands.models import BedrockModel
+
+from backend.config.settings import (
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+    AWS_DEFAULT_REGION, BEDROCK_MODEL_ID, BEDROCK_API_KEY
+)
+from backend.agent.registry import AgentRegistry
+from backend.tools import get_tools_for_agent, TOOL_REGISTRY
+from backend.utils.logger import AuditLogger, get_logger
+from backend.utils.trust import set_approval_hook
+
+logger = get_logger("agent.orchestrator")
+
+# Standard core guidelines combined with every agent's custom persona
+CORE_GUARDRAILS = """
+GLOBAL OPERATING RULES (MANDATORY):
+1. ACCURACY & NO FABRICATION: Never fabricate numbers, budgets, financial totals, or citations. If user data or specific amounts are not provided, ask the user clarifying questions, or explicitly label sample figures as "[Example/Placeholder Data]" and inform the user.
+2. TOOL WHITELIST: You may only use tools explicitly authorized in your current configuration. Never claim capabilities outside this set.
+3. NO TOOL CALL LOOPS: If a tool call fails or returns an error, DO NOT call it repeatedly in a loop. Stop, explain the error to the user, and offer alternatives.
+4. DELIVERABLE SEQUENCING & FORMATTING:
+   - When generating Excel workbooks (create_excel_workbook):
+     * Pass 'headers' as a clean list of column names, e.g. ["Category", "Amount ($)"].
+     * Pass 'rows' as a 2D list of rows, e.g. [["Salary", 5000], ["Rent", 1500]].
+     * Pass amounts as numbers (e.g. 5000, 1500.50), not crammed text strings.
+     * Do NOT dump an entire table into a single string or cell.
+     * After creation, call verify_excel_workbook on the returned file path.
+   - When generating Word documents (create_word_report):
+     * Structure content with Markdown headers (# Title, ## Section), bullet points (- item), and Markdown tables (| Col 1 | Col 2 |).
+     * After creation, call verify_word_document on the returned file path.
+5. ACTION & EXECUTION DIRECTIVE (NEVER BE PASSIVE):
+   - When the user asks to organize, move, clean up, categorize, or manage files (e.g. "organize desktop files into categorized folders", "you move all this files", "move all desktop files into specific folder", "take permission for me", "clean up desktop"):
+     * ALWAYS ACTUALLY EXECUTE the relevant authorized tool (`organize_files`, `move_file`, etc.).
+     * NEVER respond with text instructions telling the user to manually move files, drag and drop in File Explorer, or configure Windows UAC/administrator permissions.
+     * DeskPilot's built-in Human-in-the-Loop trust framework automatically prompts the user with an interactive confirmation modal dialog when you invoke the tool! Invoking the tool IS how permission is requested.
+     * When organizing desktop files or sorting loose files into folders, invoke `organize_files` directly.
+6. RESEARCH QUALITY: When performing web research, synthesize key findings into structured markdown tables (| Col 1 | Col 2 |) with source URLs.
+"""
+
+
+class AgentOrchestrator:
+    """
+    Orchestrates dynamic agent execution with Amazon Bedrock and Strands Agents SDK.
+    Loads agent configurations from AgentRegistry, resolves authorized tools,
+    and streams events to callbacks and the frontend.
+    """
+
+    def __init__(
+        self,
+        registry: Optional[AgentRegistry] = None,
+        on_log: Optional[Callable[[str], None]] = None,
+        on_event: Optional[Callable[[str, dict], None]] = None,
+    ):
+        self.registry = registry or AgentRegistry()
+        self.audit = AuditLogger()
+        self.on_log = on_log
+        self.on_event = on_event
+        self._active_agents: Dict[str, Agent] = {}
+        self._lock = threading.Lock()
+
+    def get_model(self) -> BedrockModel:
+        """
+        Initializes and returns the BedrockModel instance.
+        """
+        try:
+            if BEDROCK_API_KEY:
+                logger.info(f"Connecting to Bedrock via API key (Model: {BEDROCK_MODEL_ID})")
+                return BedrockModel(
+                    api_key=BEDROCK_API_KEY,
+                    model_id=BEDROCK_MODEL_ID,
+                    streaming=False,
+                )
+            else:
+                logger.info(f"Connecting to Bedrock via AWS session (Region: {AWS_DEFAULT_REGION}, Model: {BEDROCK_MODEL_ID})")
+                import boto3
+                session = boto3.Session(
+                    aws_access_key_id=AWS_ACCESS_KEY_ID or None,
+                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY or None,
+                    region_name=AWS_DEFAULT_REGION,
+                )
+                return BedrockModel(
+                    boto_session=session,
+                    model_id=BEDROCK_MODEL_ID,
+                    streaming=False,
+                )
+        except Exception as e:
+            logger.error(f"Failed to initialize Bedrock model: {e}")
+            raise
+
+    def build_agent(
+        self,
+        agent_id: str,
+        streaming_callback: Optional[Callable] = None,
+    ) -> Agent:
+        """
+        Dynamically constructs a Strands Agent instance for the requested agent_id:
+        1. Loads agent definition from AgentRegistry.
+        2. Filters tools to only those declared in allowed_tools (whitelist enforcement).
+        3. Constructs composite system prompt (persona + core guardrails).
+        4. Initializes Strands Agent with BedrockModel.
+        """
+        agent_def = self.registry.get_agent(agent_id)
+        if not agent_def:
+            raise ValueError(f"Agent '{agent_id}' not found in registry")
+
+        allowed_tool_names = agent_def.get("allowed_tools", [])
+        tools = get_tools_for_agent(allowed_tool_names)
+
+        # Composite system prompt
+        persona = agent_def.get("persona", "")
+        system_prompt = f"{persona.strip()}\n\n{CORE_GUARDRAILS.strip()}"
+
+        model = self.get_model()
+
+        logger.info(
+            f"Building dynamic agent '{agent_def.get('name')}' ({agent_id}) "
+            f"with {len(tools)} authorized tools: {allowed_tool_names}"
+        )
+
+        agent = Agent(
+            model=model,
+            tools=tools,
+            system_prompt=system_prompt,
+            callback_handler=streaming_callback,
+        )
+        return agent
+
+    def _create_callback_handler(
+        self,
+        task_id: str,
+        agent_id: str,
+        on_log: Optional[Callable[[str], None]] = None,
+        on_step: Optional[Callable[[str, str], None]] = None,
+        on_chunk: Optional[Callable[[str], None]] = None,
+    ) -> Callable:
+        """
+        Creates a Strands streaming callback handler that parses kwargs and emits
+        clean events for text chunks, reasoning, and tool execution status.
+        Tool logs are NOT injected into text chunks.
+        """
+        def _callback(**kwargs):
+            # 1. Streaming text data (content chunk)
+            data = kwargs.get("data", "")
+            if data:
+                if on_chunk:
+                    on_chunk(data)
+                elif on_log:
+                    on_log(data)
+
+            # 2. Reasoning text (thinking block)
+            reasoning = kwargs.get("reasoningText", "")
+            if reasoning:
+                thinking_block = f"<thinking>\n{reasoning}\n</thinking>\n"
+                if on_chunk:
+                    on_chunk(thinking_block)
+                elif on_log:
+                    on_log(thinking_block)
+
+            # 3. Tool use start event
+            event = kwargs.get("event", {})
+            tool_use = (event.get("contentBlockStart", {})
+                             .get("start", {})
+                             .get("toolUse"))
+            if tool_use:
+                tool_name = tool_use.get("name", "unknown")
+                tool_args = tool_use.get("input", {})
+                logger.info(f"[{task_id}] Tool use: {tool_name} (args: {tool_args})")
+                if on_log:
+                    on_log(f"Executing tool: {tool_name}")
+                if on_step:
+                    on_step(tool_name, "executing")
+
+                self.audit.log_action(
+                    action=tool_name,
+                    parameters=tool_args if isinstance(tool_args, dict) else {},
+                    result=None,
+                    agent_id=agent_id,
+                )
+
+                if self.on_event:
+                    self.on_event("deskpilot:step", {
+                        "task_id": task_id,
+                        "agent_id": agent_id,
+                        "tool": tool_name,
+                        "message": f"Executing tool: {tool_name}",
+                        "timestamp": datetime.now().isoformat(),
+                    })
+
+            # 4. Tool result event
+            tool_result = kwargs.get("tool_result", {})
+            if tool_result:
+                content = str(tool_result.get("content", ""))
+                summary = content[:200]
+                if on_log:
+                    on_log(f"Tool result: {summary}")
+                if on_step:
+                    on_step("tool_result", "complete")
+
+                self.audit.log_action(
+                    action="tool_result",
+                    parameters={},
+                    result=summary,
+                    success=True,
+                    agent_id=agent_id,
+                )
+
+        return _callback
+
+    def run_task(
+        self,
+        agent_id: str,
+        instruction: str,
+        task_id: Optional[str] = None,
+        on_log: Optional[Callable[[str], None]] = None,
+        on_step: Optional[Callable[[str, str], None]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Executes a task instruction using the specified agent.
+        Streams real-time events, manages status in the registry, and logs to audit history.
+        """
+        task_id = task_id or f"task_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        clean_instruction = instruction.strip()
+
+        agent_def = self.registry.get_agent(agent_id)
+        if not agent_def:
+            return {"success": False, "error": f"Agent '{agent_id}' not found"}
+
+        self.registry.set_agent_status(agent_id, "running")
+        logger.info(f"Starting execution of task [{task_id}] for '{agent_id}': {clean_instruction[:60]}...")
+
+        merged_on_log = on_log or self.on_log
+        cb = self._create_callback_handler(task_id, agent_id, merged_on_log, on_step)
+
+        try:
+            agent = self.build_agent(agent_id, streaming_callback=cb)
+            response = agent(clean_instruction)
+            result_str = str(response)
+
+            logger.info(f"Task [{task_id}] for agent '{agent_id}' completed successfully.")
+            return {
+                "success": True,
+                "task_id": task_id,
+                "agent_id": agent_id,
+                "result": result_str,
+                "audit_path": str(self.audit.get_audit_path()),
+            }
+
+        except Exception as e:
+            error_msg = f"Task execution failed: {str(e)}"
+            logger.error(f"Error executing task [{task_id}] on '{agent_id}': {e}")
+            if merged_on_log:
+                merged_on_log(f"\n❌ {error_msg}")
+            return {
+                "success": False,
+                "task_id": task_id,
+                "agent_id": agent_id,
+                "error": error_msg,
+            }
+        finally:
+            self.registry.set_agent_status(agent_id, "active")
+
+    def run_chat_turn(
+        self,
+        session_id: str,
+        agent_id: str,
+        user_message: str,
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        task_id: Optional[str] = None,
+        on_chunk: Optional[Callable[[str], None]] = None,
+        on_step: Optional[Callable[[str, str], None]] = None,
+        on_log: Optional[Callable[[str], None]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Executes a single conversational turn in a multi-turn chat session.
+        Preserves conversation context and captures tool calls and deliverables.
+        """
+        import re
+        task_id = task_id or f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        clean_message = user_message.strip()
+        history = chat_history or []
+
+        agent_def = self.registry.get_agent(agent_id)
+        if not agent_def:
+            return {"success": False, "error": f"Agent '{agent_id}' not found"}
+
+        self.registry.set_agent_status(agent_id, "running")
+        logger.info(f"Starting chat turn [{task_id}] session '{session_id}' on agent '{agent_id}'")
+
+        tools_executed = []
+        deliverables_found = []
+
+        def _step_wrapper(tool_name: str, status: str):
+            if tool_name not in tools_executed:
+                tools_executed.append(tool_name)
+            if on_step:
+                on_step(tool_name, status)
+
+        cb = self._create_callback_handler(
+            task_id=task_id,
+            agent_id=agent_id,
+            on_log=on_log,
+            on_step=_step_wrapper,
+            on_chunk=on_chunk,
+        )
+
+        # Build context prompt incorporating prior turns if available
+        tool_directive = (
+            "CRITICAL OPERATING DIRECTIVE: If the user asks you to perform any action (e.g. organize desktop files, "
+            "categorize files, move files, create an Excel spreadsheet, create Word report, research web, read files, "
+            "or says 'you move all this files' / 'take permission for me' / 'move all desktop files'): "
+            "1. ACTUALLY EXECUTE THE RELEVANT TOOL IMMEDIATELY (`organize_files`, `move_file`, `create_excel_workbook`, etc.). "
+            "2. DO NOT output text instructions telling the user to manually drag files in File Explorer. "
+            "3. DO NOT tell the user how to grant Windows permissions in text. The system automatically prompts the user for confirmation when you call the tool!"
+        )
+        if history:
+            prompt_turns = ["CONVERSATION HISTORY:"]
+            for h in history[-6:]:
+                role = "User" if h.get("role") == "user" else f"{agent_def.get('name', 'Assistant')}"
+                prompt_turns.append(f"{role}: {h.get('content', '')}")
+            prompt_turns.append(f"CURRENT REQUEST:\nUser: {clean_message}\n\n{tool_directive}")
+            full_prompt = "\n".join(prompt_turns)
+        else:
+            full_prompt = f"User Request: {clean_message}\n\n{tool_directive}"
+
+        try:
+            agent = self.build_agent(agent_id, streaming_callback=cb)
+            response = agent(full_prompt)
+            result_str = str(response)
+
+            # Detect any deliverables in result text
+            matches = re.findall(r'([a-zA-Z]:[^\s\r\n"\']+\.(?:docx|xlsx|pdf|png|csv))', result_str)
+            for m in matches:
+                clean_path = m.strip()
+                if clean_path not in deliverables_found and Path(clean_path).exists():
+                    deliverables_found.append(clean_path)
+
+            logger.info(f"Chat turn [{task_id}] session '{session_id}' completed successfully.")
+            return {
+                "success": True,
+                "task_id": task_id,
+                "session_id": session_id,
+                "agent_id": agent_id,
+                "response": result_str,
+                "tool_calls": tools_executed,
+                "deliverables": deliverables_found,
+            }
+
+        except Exception as e:
+            error_msg = f"Chat turn execution failed: {str(e)}"
+            logger.error(f"Error in chat turn [{task_id}] session '{session_id}': {e}")
+            return {
+                "success": False,
+                "task_id": task_id,
+                "session_id": session_id,
+                "agent_id": agent_id,
+                "error": error_msg,
+            }
+        finally:
+            self.registry.set_agent_status(agent_id, "active")

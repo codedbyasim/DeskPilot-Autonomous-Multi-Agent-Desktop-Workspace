@@ -1,0 +1,54 @@
+# ==============================================================================
+# DeskPilot .gitignore
+# ==============================================================================
+
+# Secrets and environment variables (CRITICAL: Never commit to GitHub)
+.env
+.env.local
+.env.*
+*.env
+**/.env
+!.env.example
+
+# Python compilation and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+
+# PyInstaller / Build distribution artifacts
+build/
+dist/
+*.spec
+!deskpilot.spec
+
+# Local application data, logs & user chats
+logs/
+*.log
+*.jsonl
+chats/
+DeskPilot_Output/
+output/
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+.gemini/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+desktop.ini
+.DS_Store
