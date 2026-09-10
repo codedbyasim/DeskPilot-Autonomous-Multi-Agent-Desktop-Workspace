@@ -6,18 +6,25 @@
 
 This document details the internal architecture, component interactions, safety mechanisms, and Amazon Bedrock integration powering **DeskPilot**.
 
-![DeskPilot Enterprise Architecture Diagram](../assets/architecture_diagram.png)
+![DeskPilot Dashboard](../assets/screenshots/dashboard.png)
 
 ---
 
 ## 1. System Overview
 
 DeskPilot is architected around a **decoupled hybrid desktop model**:
+
 - **Presentation Layer**: A high-performance, dark glassmorphism interface running inside Microsoft Edge WebView2 (via `pywebview`) or served locally via Flask for standard browsers.
 - **Bridge Layer**: A two-way event bus bridging JavaScript UI actions to Python threads via native pywebview bindings and Server-Sent Events (SSE).
 - **Agent Orchestration Engine**: Built with the **Strands Agents SDK**, dynamically instantiating agents backed by **Amazon Bedrock Nova Pro** (`amazon.nova-pro-v1:0`).
 - **Trust & Autonomy Engine**: A stateful Human-in-the-Loop approval gate categorizing all agent actions into **Green**, **Yellow**, or **Red** tiers.
 - **Tool Execution Framework**: 28 native desktop tools covering file management, Word/Excel document creation, PDF analysis, web research, and system software installations.
+
+### Detailed Component & Runtime Interaction Architecture
+
+![DeskPilot Detailed Runtime Architecture](../assets/runtime_architecture.png)
+
+### Interactive System Topology (Mermaid)
 
 ```mermaid
 flowchart TB
@@ -120,13 +127,13 @@ sequenceDiagram
     Frontend->>Bridge: send_chat_message(sessionId, prompt)
     Bridge->>Orchestrator: run_chat_turn(agentId, prompt, history)
     Orchestrator->>Bedrock: Stream Prompt + Whitelisted Tools Schema
-    
+
     loop Reasoning & Tool Execution
         Bedrock-->>Orchestrator: Stream reasoning tokens & ToolCall (organize_files)
         Orchestrator-->>Frontend: Emit 'deskpilot:chat_chunk' & 'deskpilot:chat_step'
         Orchestrator->>Tool: execute organize_files("Desktop")
         Tool->>Trust: request_approval("organize_files", description)
-        
+
         alt Yellow / Red Tier
             Trust->>Frontend: Emit 'deskpilot:approval_required'
             Frontend-->>User: Display Interactive Confirmation Modal
@@ -135,7 +142,7 @@ sequenceDiagram
             Bridge->>Trust: resolve_approval(requestId, True)
             Trust-->>Tool: Resume Execution
         end
-        
+
         Tool->>Tool: Batch organize files & create subfolders
         Tool-->>Orchestrator: Tool Result Summary
         Orchestrator->>Bedrock: Send ToolResult to Bedrock
@@ -153,14 +160,16 @@ sequenceDiagram
 
 Every action executed by an agent is evaluated by the **Trust Tier Classifier** (`backend/utils/trust.py`):
 
-| Trust Tier | Behavioral Model | Example Tools | User Experience |
-|---|---|---|---|
-| **🟢 Green (Autonomous)** | Auto-executed without human interruption | `list_files`, `verify_file_exists`, `read_file`, `create_folder`, `create_word_report`, `create_excel_workbook`, `search_web` | Immediate execution with pulsing tool badges in chat |
-| **🟡 Yellow (Confirmation Required)** | Thread pauses; requires user confirmation | `move_file`, `rename_file`, `organize_files`, `write_file` | Modal popup with action description. Supports **Approve All** for batch operations |
-| **🔴 Red (Unbypassable Approval)** | Mandatory explicit approval; strict allowlists | `delete_file`, `install_software`, `run_shell_command` | High-visibility warning dialog with full path/package verification |
+| Trust Tier                            | Behavioral Model                               | Example Tools                                                                                                                 | User Experience                                                                    |
+| ------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **🟢 Green (Autonomous)**             | Auto-executed without human interruption       | `list_files`, `verify_file_exists`, `read_file`, `create_folder`, `create_word_report`, `create_excel_workbook`, `search_web` | Immediate execution with pulsing tool badges in chat                               |
+| **🟡 Yellow (Confirmation Required)** | Thread pauses; requires user confirmation      | `move_file`, `rename_file`, `organize_files`, `write_file`                                                                    | Modal popup with action description. Supports **Approve All** for batch operations |
+| **🔴 Red (Unbypassable Approval)**    | Mandatory explicit approval; strict allowlists | `delete_file`, `install_software`, `run_shell_command`                                                                        | High-visibility warning dialog with full path/package verification                 |
 
 ### "Approve All" Batch Caching
+
 In batch operations (e.g., reorganizing multiple files or multi-document workflows), DeskPilot implements **Session-Scoped Approval Caching**:
+
 1. When a user clicks **Approve All** on an approval modal, the approval engine caches authorization for that specific action type.
 2. Subsequent calls of the same action type within that turn execute immediately without modal interruptions.
 3. The cache automatically clears at the start of every new chat turn.
@@ -197,6 +206,7 @@ Agents are defined as lightweight, declarative JSON manifests stored in `agents/
 ![Pre-Configured Template Agent Catalog](../assets/screenshots/template_gallery.png)
 
 ### Strict Tool Whitelisting (Section 13 Compliance)
+
 When an agent is loaded, `AgentOrchestrator.build_agent()` strictly resolves only the tools listed in `allowed_tools`. Tools outside the whitelist are never exposed to the foundation model, preventing unauthorized capabilities or hallucinated tool use.
 
 ---
@@ -206,7 +216,7 @@ When an agent is loaded, `AgentOrchestrator.build_agent()` strictly resolves onl
 When generating documents, DeskPilot enforces a closed-loop creation and verification lifecycle:
 
 ```
-[User Request] 
+[User Request]
       │
       ▼
 [Tool: create_excel_workbook] ──► Writes formulas, formats currency, auto-fits columns
