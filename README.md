@@ -98,33 +98,7 @@ DeskPilot is engineered from the ground up around **Amazon Web Services (AWS)** 
 
 </details>
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                   DeskPilot Workspace Shell (pywebview / Web)           │
-│  ┌────────────────────────────────────────────────────────────────────┐  │
-│  │                Glassmorphism Interface (HTML5 / Vanilla CSS / JS) │  │
-│  │  Sidebar | Conversational Chat | Agent Builder | Approval Modal   │  │
-│  └──────────────────────────────────┬─────────────────────────────────┘  │
-│                                     │ JS ↔ Python Bridge / SSE Stream    │
-│  ┌──────────────────────────────────▼─────────────────────────────────┐  │
-│  │                     Python 3.12 Backend Core                       │  │
-│  │  ┌────────────────┐     ┌────────────────┐    ┌─────────────────┐ │  │
-│  │  │ Agent Registry │     │  Orchestrator  │    │  Trust Engine   │ │  │
-│  │  │  (JSON Store)  │ ──► │ (Strands SDK)  │ ◄─ │ (Green/Yel/Red) │ │  │
-│  │  └────────────────┘     └───────┬────────┘    └─────────────────┘ │  │
-│  │                                 │                                 │  │
-│  │                 ┌───────────────┴───────────────┐                 │  │
-│  │                 ▼                               ▼                 │  │
-│  │      ┌─────────────────────┐         ┌──────────────────────┐     │  │
-│  │      │ 28 Autonomous Tools │         │    Amazon Bedrock    │     │  │
-│  │      │ Files/Word/Excel/Web│         │   (Nova Pro LLM)     │     │  │
-│  │      │ PDF Extraction      │         │                      │     │  │
-│  │      └─────────────────────┘         └──────────────────────┘     │  │
-│  └────────────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-For detailed component interaction diagrams, see [docs/ARCHITECTURE.md](file:///g:/Hackathon/AWS%20Hackathon%20Project/Project/docs/ARCHITECTURE.md).
+For detailed component interaction diagrams and technical breakdowns, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
