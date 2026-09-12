@@ -223,6 +223,14 @@ class DeskPilotBridgeClient {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ save_location: args[0], always_save: args[1], custom_path: args[2] || '' })
                     })).json();
+                case 'submit_user_form':
+                    return await (await fetch(`${base}/user/form-submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ form_id: args[0], data: args[1] || {}, cancelled: !!args[2] })
+                    })).json();
+                case 'get_user_profile':
+                    return await (await fetch(`${base}/user/profile?category=${encodeURIComponent(args[0] || 'all')}`)).json();
                 default:
                     console.warn(`Unhandled HTTP API method: ${method}`);
                     return null;
@@ -417,6 +425,14 @@ class DeskPilotBridgeClient {
 
     async getSystemDiagnostics() {
         return await this._call('get_system_diagnostics') || {};
+    }
+
+    async submitUserForm(formId, data = {}, cancelled = false) {
+        return await this._call('submit_user_form', formId, data, cancelled);
+    }
+
+    async getUserProfile(category = 'all') {
+        return await this._call('get_user_profile', category) || {};
     }
 
     // ── Event Bus ─────────────────────────────────────────────────────────────

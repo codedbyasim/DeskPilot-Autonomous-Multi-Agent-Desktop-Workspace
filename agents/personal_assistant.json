@@ -33,7 +33,10 @@
     "verify_excel_workbook",
     "search_web",
     "search_and_read",
-    "organize_files"
+    "organize_files",
+    "ask_user_form",
+    "get_user_profile",
+    "update_user_profile"
   ],
   "category": "default",
   "created_by": "system",

@@ -88,7 +88,10 @@ GREEN_ACTIONS = {
     "get_system_info", "system_diagnostics", "system_info",
     "get_running_processes", "list_processes", "running_processes",
     "explain_file_purpose", "explain_file", "file_purpose",
-    "scan_and_categorize_files", "categorize_files", "scan_files"
+    "scan_and_categorize_files", "categorize_files", "scan_files",
+    "ask_user_form", "request_user_form", "prompt_user_form",
+    "get_user_profile", "user_profile", "read_user_profile",
+    "update_user_profile", "save_user_fact"
 }
 YELLOW_ACTIONS = {
     "modify_existing_file", "overwrite_document", "write_spreadsheet",

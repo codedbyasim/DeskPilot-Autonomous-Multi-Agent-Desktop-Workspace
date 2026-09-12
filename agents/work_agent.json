@@ -25,7 +25,10 @@
     "extract_pdf_tables",
     "create_folder",
     "move_file",
-    "organize_files"
+    "organize_files",
+    "ask_user_form",
+    "get_user_profile",
+    "update_user_profile"
   ],
   "category": "default",
   "created_by": "system",

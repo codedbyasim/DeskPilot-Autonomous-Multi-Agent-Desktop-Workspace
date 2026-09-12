@@ -22,6 +22,7 @@ from backend.agent.registry import AgentRegistry
 from backend.tools import get_tools_for_agent, TOOL_REGISTRY
 from backend.utils.logger import AuditLogger, get_logger
 from backend.utils.trust import set_approval_hook
+from backend.utils.user_memory import get_user_memory_context
 
 logger = get_logger("agent.orchestrator")
 
@@ -48,6 +49,13 @@ GLOBAL OPERATING RULES (MANDATORY):
      * DeskPilot's built-in Human-in-the-Loop trust framework automatically prompts the user with an interactive confirmation modal dialog when you invoke the tool! Invoking the tool IS how permission is requested.
      * When organizing desktop files or sorting loose files into folders, invoke `organize_files` directly.
 6. RESEARCH QUALITY: When performing web research, synthesize key findings into structured markdown tables (| Col 1 | Col 2 |) with source URLs.
+7. DYNAMIC USER ONBOARDING & INTERACTIVE CLARIFICATION FORMS:
+   - When communicating with the user, if you lack vital domain background or onboarding information (for example: Health Agent needs age, wellness goals, and allergies; Finance Agent needs preferred currency and budgeting focus; Work Agent needs job role and team standards; Personal Assistant needs user name and daily priorities), AND these are not already recorded in the USER PROFILE & LOCAL MEMORY CONTEXT:
+     * On your first query, YOU MUST invoke the `ask_user_form` tool!
+     * Decide the appropriate question fields dynamically based on your persona and what you genuinely need to know.
+     * DeskPilot will immediately display a modern popup form dialog on the user's screen.
+     * The user's submitted answers are automatically stored in local storage (`user_profiles.json`) so you remember them permanently.
+   - Ambiguity & Confusion: Whenever instructions are ambiguous, confusing, or missing necessary choices (e.g. date ranges, report formats, file destinations), DO NOT guess — invoke `ask_user_form` to prompt the user directly with custom question fields.
 """
 
 
@@ -119,9 +127,10 @@ class AgentOrchestrator:
         allowed_tool_names = agent_def.get("allowed_tools", [])
         tools = get_tools_for_agent(allowed_tool_names)
 
-        # Composite system prompt
+        # Composite system prompt: persona + user local memory + global operating guardrails
         persona = agent_def.get("persona", "")
-        system_prompt = f"{persona.strip()}\n\n{CORE_GUARDRAILS.strip()}"
+        memory_context = get_user_memory_context(agent_id)
+        system_prompt = f"{persona.strip()}\n\n{memory_context.strip()}\n\n{CORE_GUARDRAILS.strip()}"
 
         model = self.get_model()
 

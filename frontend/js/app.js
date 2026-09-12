@@ -2483,6 +2483,199 @@ function initApp() {
         }
     }
 
+    // ── 7.10 Dynamic Questionnaire & Clarification Form Controller ─────────────
+    let activeDynamicFormRequest = null;
+
+    function handleDynamicFormRequest(detail) {
+        if (!detail || !detail.form_id) return;
+        activeDynamicFormRequest = detail;
+
+        const modal = document.getElementById('dynamic-form-modal');
+        if (!modal) return;
+
+        const titleEl = document.getElementById('dynamic-form-title');
+        const descEl = document.getElementById('dynamic-form-desc');
+        const badgeEl = document.getElementById('dynamic-form-agent-badge');
+        const fieldsContainer = document.getElementById('dynamic-form-fields-container');
+
+        if (titleEl) titleEl.textContent = detail.title || 'Agent Questionnaire';
+        if (descEl) descEl.textContent = detail.description || 'Please provide your details so the agent can personalize its assistance:';
+        if (badgeEl) {
+            const agentName = (detail.agent_id ? detail.agent_id.replace('_agent', '').replace('_', ' ') : 'DeskPilot').toUpperCase();
+            badgeEl.textContent = agentName;
+        }
+
+        if (fieldsContainer) {
+            fieldsContainer.innerHTML = '';
+            const fields = detail.fields || [];
+
+            fields.forEach((f, idx) => {
+                const card = document.createElement('div');
+                card.className = 'dynamic-field-card';
+
+                const labelRow = document.createElement('div');
+                labelRow.className = 'flex items-center justify-between mb-1.5';
+
+                const label = document.createElement('label');
+                label.className = 'text-xs font-semibold text-white';
+                label.textContent = f.label || `Question ${idx + 1}`;
+                labelRow.appendChild(label);
+
+                const badge = document.createElement('span');
+                if (f.required !== false) {
+                    badge.className = 'text-[10px] text-rose-400 font-semibold px-1.5 py-0.5 rounded bg-rose-500/15 border border-rose-500/30';
+                    badge.textContent = 'Required';
+                } else {
+                    badge.className = 'text-[10px] text-slate-500';
+                    badge.textContent = 'Optional';
+                }
+                labelRow.appendChild(badge);
+                card.appendChild(labelRow);
+
+                const fieldType = (f.type || 'text').toLowerCase();
+                const fieldId = f.id || `field_${idx}`;
+
+                if (fieldType === 'textarea') {
+                    const textarea = document.createElement('textarea');
+                    textarea.id = `df-input-${fieldId}`;
+                    textarea.rows = 3;
+                    textarea.className = 'dynamic-input';
+                    textarea.placeholder = f.placeholder || 'Enter your details...';
+                    if (f.default) textarea.value = f.default;
+                    card.appendChild(textarea);
+                } else if (fieldType === 'select') {
+                    const select = document.createElement('select');
+                    select.id = `df-input-${fieldId}`;
+                    select.className = 'dynamic-input';
+
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = '-- Please choose an option --';
+                    select.appendChild(defaultOpt);
+
+                    (f.options || []).forEach(opt => {
+                        const optEl = document.createElement('option');
+                        optEl.value = opt;
+                        optEl.textContent = opt;
+                        if (opt === f.default) optEl.selected = true;
+                        select.appendChild(optEl);
+                    });
+                    card.appendChild(select);
+                } else if (fieldType === 'radio') {
+                    const radioGroup = document.createElement('div');
+                    radioGroup.className = 'space-y-1.5 pt-1';
+
+                    (f.options || []).forEach((opt, optIdx) => {
+                        const rLabel = document.createElement('label');
+                        rLabel.className = 'dynamic-radio-card';
+
+                        const rInput = document.createElement('input');
+                        rInput.type = 'radio';
+                        rInput.name = `df-radio-${fieldId}`;
+                        rInput.value = opt;
+                        rInput.className = 'text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700';
+                        if (opt === f.default || (!f.default && optIdx === 0)) rInput.checked = true;
+
+                        const rSpan = document.createElement('span');
+                        rSpan.className = 'text-xs text-slate-300';
+                        rSpan.textContent = opt;
+
+                        rLabel.appendChild(rInput);
+                        rLabel.appendChild(rSpan);
+                        radioGroup.appendChild(rLabel);
+                    });
+                    card.appendChild(radioGroup);
+                } else {
+                    const input = document.createElement('input');
+                    input.type = fieldType === 'number' ? 'number' : 'text';
+                    input.id = `df-input-${fieldId}`;
+                    input.className = 'dynamic-input';
+                    input.placeholder = f.placeholder || (fieldType === 'number' ? 'e.g. 25' : 'Type response here...');
+                    if (f.default) input.value = f.default;
+                    card.appendChild(input);
+                }
+
+                fieldsContainer.appendChild(card);
+            });
+        }
+
+        modal.classList.remove('modal-hidden');
+        refreshLucide();
+        showToast(`Agent requested details: ${detail.title || 'Form'}`, 'info');
+    }
+
+    async function submitDynamicForm() {
+        if (!activeDynamicFormRequest) return;
+
+        const fields = activeDynamicFormRequest.fields || [];
+        const collectedData = {};
+        let hasError = false;
+
+        for (const f of fields) {
+            const fieldId = f.id;
+            const fieldType = (f.type || 'text').toLowerCase();
+            let val = '';
+
+            if (fieldType === 'radio') {
+                const checkedRadio = document.querySelector(`input[name="df-radio-${fieldId}"]:checked`);
+                val = checkedRadio ? checkedRadio.value : '';
+            } else {
+                const el = document.getElementById(`df-input-${fieldId}`);
+                val = el ? el.value.trim() : '';
+            }
+
+            if (f.required !== false && !val) {
+                showToast(`Please answer required question: ${f.label}`, 'warning');
+                hasError = true;
+                const el = document.getElementById(`df-input-${fieldId}`);
+                if (el) el.focus();
+                break;
+            }
+            if (val) {
+                collectedData[fieldId] = val;
+            }
+        }
+
+        if (hasError) return;
+
+        const formId = activeDynamicFormRequest.form_id;
+        const modal = document.getElementById('dynamic-form-modal');
+        if (modal) modal.classList.add('modal-hidden');
+        activeDynamicFormRequest = null;
+
+        try {
+            if (window.DeskPilot && window.DeskPilot.submitUserForm) {
+                await window.DeskPilot.submitUserForm(formId, collectedData, false);
+            }
+            showToast('Details submitted! Agent is now personalizing your response...', 'success');
+        } catch (e) {
+            console.error('Failed to submit dynamic form:', e);
+            showToast('Error submitting form: ' + e.message, 'error');
+        }
+    }
+
+    async function skipDynamicForm() {
+        if (!activeDynamicFormRequest) return;
+
+        const formId = activeDynamicFormRequest.form_id;
+        const modal = document.getElementById('dynamic-form-modal');
+        if (modal) modal.classList.add('modal-hidden');
+        activeDynamicFormRequest = null;
+
+        try {
+            if (window.DeskPilot && window.DeskPilot.submitUserForm) {
+                await window.DeskPilot.submitUserForm(formId, {}, true);
+            }
+            showToast('Questionnaire skipped. Proceeding with general guidance.', 'info');
+        } catch (e) {
+            console.error('Failed to skip dynamic form:', e);
+        }
+    }
+
+    window.addEventListener('deskpilot:form_request', (e) => {
+        handleDynamicFormRequest(e.detail);
+    });
+
     // Export methods for inline HTML onclick handlers
     window.DeskPilotApp = {
         openTaskModal,
@@ -2505,6 +2698,9 @@ function initApp() {
         loadStorageHeaderPill,
         switchView,
         refreshAuditHistory,
+        submitDynamicForm,
+        skipDynamicForm,
+        handleDynamicFormRequest,
 
         selectChatSession: (id) => selectChatSession(id),
         deleteChatSession: (id) => deleteCurrentChat(id),

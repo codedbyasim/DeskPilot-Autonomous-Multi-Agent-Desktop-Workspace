@@ -31,6 +31,9 @@ from backend.tools.system_tools import (
     winget_install, get_winget_allowlist, check_software_installed, launch_application,
     get_storage_status, clean_temporary_files, get_system_info, get_running_processes
 )
+from backend.tools.user_tools import (
+    ask_user_form, get_user_profile, update_user_profile
+)
 
 logger = get_logger("tools.registry")
 
@@ -118,6 +121,15 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "get_running_processes": get_running_processes,
     "running_processes": get_running_processes,  # Alias
     "list_processes": get_running_processes,  # Alias
+
+    # ── User Profile & Dynamic Form Tools ────────────────────────────────────
+    "ask_user_form": ask_user_form,
+    "request_user_form": ask_user_form,  # Alias
+    "prompt_user_form": ask_user_form,  # Alias
+    "get_user_profile": get_user_profile,
+    "user_profile": get_user_profile,  # Alias
+    "update_user_profile": update_user_profile,
+    "save_user_fact": update_user_profile,  # Alias
 }
 
 

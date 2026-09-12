@@ -16,7 +16,10 @@
     "search_and_read",
     "read_file",
     "write_file",
-    "open_file"
+    "open_file",
+    "ask_user_form",
+    "get_user_profile",
+    "update_user_profile"
   ],
   "category": "default",
   "created_by": "system",

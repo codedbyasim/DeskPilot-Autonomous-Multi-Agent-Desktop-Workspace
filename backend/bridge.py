@@ -782,3 +782,38 @@ class DeskPilotBridge:
                 "agent_id": agent_id,
                 "error": str(e),
             })
+
+    # ── 8. User Memory & Interactive Form Submissions ─────────────────────────
+
+    def submit_user_form(self, form_id: str, data: Optional[Dict[str, Any]] = None, cancelled: bool = False) -> Dict[str, Any]:
+        """
+        Submits responses to an interactive popup form initiated by an agent.
+        Unblocks the waiting agent execution thread.
+        """
+        from backend.utils.form_engine import resolve_user_form
+        clean_data = data or {}
+        resolved = resolve_user_form(form_id, clean_data, cancelled=cancelled)
+        return {
+            "success": resolved,
+            "form_id": form_id,
+            "cancelled": cancelled,
+            "error": None if resolved else f"Form request '{form_id}' not found or already closed"
+        }
+
+    def get_user_profile(self, category: str = "global") -> Dict[str, Any]:
+        """Returns the user profile dictionary for a specific category or agent."""
+        from backend.utils.user_memory import UserMemoryManager
+        return {
+            "success": True,
+            "category": category,
+            "profile": UserMemoryManager.get_profile(category)
+        }
+
+    def get_all_user_profiles(self) -> Dict[str, Any]:
+        """Returns all user profiles from config/user_profiles.json."""
+        from backend.utils.user_memory import UserMemoryManager
+        return {
+            "success": True,
+            "profiles": UserMemoryManager.get_all_profiles()
+        }
+

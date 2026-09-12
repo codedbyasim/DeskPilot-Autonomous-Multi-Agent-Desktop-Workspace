@@ -238,6 +238,27 @@ def get_system_diagnostics_route():
     return jsonify(bridge.get_system_diagnostics_summary())
 
 
+# ── Interactive Dynamic Form & User Profile Endpoints ────────────────────────
+
+@app.route("/api/user/form-submit", methods=["POST"])
+def submit_user_form_route():
+    data = request.get_json() or {}
+    form_id = data.get("form_id", "")
+    form_data = data.get("data", {})
+    cancelled = bool(data.get("cancelled", False))
+    res = bridge.submit_user_form(form_id, form_data, cancelled=cancelled)
+    return jsonify(res)
+
+
+@app.route("/api/user/profile", methods=["GET"])
+def get_user_profile_route():
+    category = request.args.get("category", "all")
+    if category == "all":
+        return jsonify(bridge.get_all_user_profiles())
+    return jsonify(bridge.get_user_profile(category))
+
+
+
 
 # ── Chat Session Endpoints ────────────────────────────────────────────────────
 

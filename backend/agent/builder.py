@@ -234,6 +234,26 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "category": "System",
         "tier": "GREEN",
     },
+
+    # User Profile & Dynamic Interaction
+    "ask_user_form": {
+        "title": "Interactive Questionnaire & Clarification Form",
+        "description": "Pop up custom runtime forms to onboard users, collect background details, or ask clarification questions",
+        "category": "User Context",
+        "tier": "GREEN",
+    },
+    "get_user_profile": {
+        "title": "Access User Memory & Profile",
+        "description": "Retrieve saved user preferences, health background, and identity facts from local storage",
+        "category": "User Context",
+        "tier": "GREEN",
+    },
+    "update_user_profile": {
+        "title": "Save User Memory Fact",
+        "description": "Store specific facts or preferences learned during conversations into local storage",
+        "category": "User Context",
+        "tier": "GREEN",
+    },
 }
 
 BUILDER_PROMPT_TEMPLATE = """You are DeskPilot's Custom Agent Architect.
