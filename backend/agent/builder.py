@@ -64,8 +64,26 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "category": "PDF",
         "tier": "GREEN",
     },
+    "edit_pdf_document": {
+        "title": "Edit PDF Document",
+        "description": "Read, modify text/tables in PDF and generate updated deliverable",
+        "category": "PDF",
+        "tier": "YELLOW",
+    },
 
     # Word
+    "read_word_document": {
+        "title": "Read Word Document (.docx)",
+        "description": "Read and analyze existing Word document structure, headings, and tables",
+        "category": "Documents",
+        "tier": "GREEN",
+    },
+    "edit_word_document": {
+        "title": "Edit Word Document (.docx)",
+        "description": "Perform targeted text replacements, section updates, or append content in Word docs",
+        "category": "Documents",
+        "tier": "YELLOW",
+    },
     "create_word_report": {
         "title": "Create Word Reports (.docx)",
         "description": "Generate professionally styled Word documents with tables and headers",
@@ -91,6 +109,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "description": "Read sheets, cell values, and data tables from Excel files",
         "category": "Spreadsheets",
         "tier": "GREEN",
+    },
+    "edit_excel_file": {
+        "title": "Edit Excel Workbook (.xlsx)",
+        "description": "Update specific cell values, append rows, and modify spreadsheets",
+        "category": "Spreadsheets",
+        "tier": "YELLOW",
     },
     "create_reconciliation_report": {
         "title": "Reconciliation Report",

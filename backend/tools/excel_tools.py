@@ -16,11 +16,13 @@ import ast
 import re
 import csv
 import io
+import shutil
 from pathlib import Path
 from typing import Any, Union, Optional, List
 from datetime import datetime
 from backend.config.settings import DEFAULT_OUTPUT_DIR
 from backend.utils.save_preferences import resolve_effective_save_dir
+from backend.utils.document_resolver import resolve_document_path
 from backend.utils.logger import get_logger
 
 logger = get_logger("tools.excel")
@@ -490,22 +492,9 @@ def read_excel_file(file_path: str, sheet_name: str = "") -> str:
     Returns:
         JSON string with headers and data rows
     """
-    raw_path = Path(file_path)
-    path = raw_path
-
-    if not path.exists():
-        # Check candidate locations
-        for cand in [
-            Path("sample_data") / raw_path.name,
-            DEFAULT_OUTPUT_DIR / raw_path.name,
-            Path.home() / "Desktop" / raw_path.name,
-        ]:
-            if cand.exists():
-                path = cand
-                break
-
-    if not path.exists():
-        return f"Error: Excel file not found at '{file_path}'"
+    path = resolve_document_path(file_path, default_ext=".xlsx")
+    if not path or not path.exists():
+        return f"Error: Excel file not found at '{file_path}'. Please check that the file exists."
 
     try:
         wb = openpyxl.load_workbook(str(path), data_only=True)
@@ -851,3 +840,126 @@ def verify_excel_workbook(file_path: str, required_sheets: str = "[]") -> str:
     report += "VERIFIED ✓" if passed == total else f"ISSUES ({total - passed} failed)"
 
     return report
+
+
+@tool
+def edit_excel_file(
+    file_path: str,
+    cell_updates: Optional[Union[list, dict, str]] = None,
+    append_rows: Optional[Union[list, str]] = None,
+    sheet_name: str = "",
+    output_path: str = "",
+) -> str:
+    """
+    Edit an existing Excel workbook (.xlsx) by updating specific cell values,
+    appending new rows of data, or adding calculations.
+    Maintains existing sheet structure, styles, and formulas.
+    Automatically creates a safe backup (.bak) when editing in-place.
+
+    Args:
+        file_path: Path or filename of the .xlsx file (e.g. 'budget.xlsx' or 'sample_data/supplier_ledger.xlsx')
+        cell_updates: Dict {'B4': 5000, 'C4': 'Paid'} or list of dicts [{'cell': 'B4', 'value': 5000}]
+        append_rows: 2D list or JSON string of rows to append at the bottom
+        sheet_name: Worksheet name to edit (default: active sheet)
+        output_path: Destination path for the edited file (empty to edit in-place with .bak backup)
+
+    Returns:
+        Status message detailing modified cells, appended rows, backup path, and deliverable location.
+    """
+    path = resolve_document_path(file_path, default_ext=".xlsx")
+    if not path or not path.exists():
+        return f"Error: Excel file not found at '{file_path}'. Please check that the file exists."
+
+    try:
+        wb = openpyxl.load_workbook(str(path))
+    except Exception as e:
+        logger.error(f"Cannot open Excel workbook {path}: {e}")
+        return f"Error opening Excel file '{path.name}': {str(e)}"
+
+    ws = wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames else wb.active
+    border = _thin_border()
+
+    cells_modified = 0
+    # 1. Parse and apply cell updates
+    if cell_updates:
+        updates_list = []
+        if isinstance(cell_updates, str):
+            try:
+                parsed = json.loads(cell_updates)
+                if isinstance(parsed, dict):
+                    updates_list = [{"cell": k, "value": v} for k, v in parsed.items()]
+                elif isinstance(parsed, list):
+                    updates_list = parsed
+            except Exception:
+                pass
+        elif isinstance(cell_updates, dict):
+            updates_list = [{"cell": k, "value": v} for k, v in cell_updates.items()]
+        elif isinstance(cell_updates, list):
+            updates_list = cell_updates
+
+        for upd in updates_list:
+            if isinstance(upd, dict):
+                cell_ref = upd.get("cell") or upd.get("coord")
+                if not cell_ref and "row" in upd and "col" in upd:
+                    cell_ref = f"{get_column_letter(int(upd['col']))}{upd['row']}"
+                if cell_ref:
+                    val = _parse_cell_value(upd.get("value", ""))
+                    cell = ws[str(cell_ref).strip()]
+                    cell.value = val
+                    if isinstance(val, (int, float)) and not cell.number_format:
+                        cell.number_format = "#,##0.00"
+                    cells_modified += 1
+
+    # 2. Parse and append rows
+    rows_appended = 0
+    if append_rows:
+        parsed_rows = _parse_table_data(append_rows)
+        if parsed_rows:
+            start_row = ws.max_row + 1
+            for r_idx, row_data in enumerate(parsed_rows):
+                cur_row = start_row + r_idx
+                bg = GRAY_ROW if cur_row % 2 == 0 else WHITE
+                for col_idx, val in enumerate(row_data, 1):
+                    parsed_val = _parse_cell_value(val)
+                    c = ws.cell(row=cur_row, column=col_idx, value=parsed_val)
+                    c.border = border
+                    c.fill = PatternFill("solid", fgColor=bg)
+                    c.alignment = Alignment(vertical="center")
+                    if isinstance(parsed_val, (int, float)):
+                        c.number_format = "#,##0.00"
+                        c.alignment = Alignment(horizontal="right", vertical="center")
+                rows_appended += 1
+
+    # 3. Destination & Backup
+    backup_path = None
+    if output_path and str(output_path).strip():
+        out_dest = _resolve_excel_path(output_path, default_name=path.stem)
+    else:
+        out_dest = path
+        backup_path = path.parent / f"{path.stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx.bak"
+        try:
+            shutil.copy2(path, backup_path)
+            logger.info(f"Created Excel safety backup: {backup_path}")
+        except Exception as e:
+            logger.warning(f"Could not create Excel safety backup: {e}")
+
+    # 4. Save workbook
+    try:
+        wb.save(str(out_dest))
+    except PermissionError:
+        out_dest = out_dest.parent / f"{out_dest.stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{out_dest.suffix}"
+        wb.save(str(out_dest))
+        logger.info(f"Target Excel file was open; saved to: {out_dest}")
+
+    abs_out = str(out_dest.resolve())
+    verify_report = verify_excel_workbook(abs_out)
+
+    resp = [
+        f"SUCCESS: Excel workbook updated and saved to '{abs_out}'",
+        f"Modifications: Updated {cells_modified} cell(s), appended {rows_appended} row(s) to sheet '{ws.title}'",
+    ]
+    if backup_path and backup_path.exists():
+        resp.append(f"Safety Backup Created: '{backup_path.resolve()}'")
+    resp.append(f"\nVerification:\n{verify_report}")
+    return "\n".join(resp)
+

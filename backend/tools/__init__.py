@@ -12,14 +12,15 @@ from backend.tools.web_tools import (
     search_web, read_webpage, search_and_read
 )
 from backend.tools.pdf_tools import (
-    read_pdf, extract_pdf_tables, extract_pdf_invoice, list_pdfs_in_folder
+    read_pdf, extract_pdf_tables, extract_pdf_invoice, list_pdfs_in_folder,
+    edit_pdf_document
 )
 from backend.tools.word_tools import (
-    create_word_report, verify_word_document
+    create_word_report, verify_word_document, read_word_document, edit_word_document
 )
 from backend.tools.excel_tools import (
     create_excel_workbook, create_reconciliation_report,
-    verify_excel_workbook, read_excel_file
+    verify_excel_workbook, read_excel_file, edit_excel_file
 )
 from backend.tools.file_tools import (
     list_files, verify_file_exists, move_file, rename_file, delete_file, delete_files,
@@ -48,18 +49,31 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "extract_pdf_tables": extract_pdf_tables,
     "extract_pdf_invoice": extract_pdf_invoice,
     "list_pdfs_in_folder": list_pdfs_in_folder,
+    "edit_pdf_document": edit_pdf_document,
+    "edit_pdf": edit_pdf_document,  # Alias
 
-    # ── Word Report Generation Tools ─────────────────────────────────────────
+    # ── Word Document & Report Tools ─────────────────────────────────────────
+    "read_word_document": read_word_document,
+    "read_word_file": read_word_document,  # Alias
+    "read_docx": read_word_document,  # Alias
+    "edit_word_document": edit_word_document,
+    "edit_word_file": edit_word_document,  # Alias
+    "edit_docx": edit_word_document,  # Alias
     "create_word_report": create_word_report,
     "create_word_document": create_word_report,  # Alias
     "verify_word_document": verify_word_document,
 
     # ── Excel Workbook Tools ─────────────────────────────────────────────────
+    "read_excel_file": read_excel_file,
+    "read_excel": read_excel_file,  # Alias
+    "edit_excel_file": edit_excel_file,
+    "edit_excel_workbook": edit_excel_file,  # Alias
+    "edit_excel": edit_excel_file,  # Alias
+    "edit_spreadsheet": edit_excel_file,  # Alias
     "create_excel_workbook": create_excel_workbook,
     "create_workbook": create_excel_workbook,  # Alias
     "create_reconciliation_report": create_reconciliation_report,
     "verify_excel_workbook": verify_excel_workbook,
-    "read_excel_file": read_excel_file,
 
     # ── File System & Desktop Control Tools ──────────────────────────────────
     "list_files": list_files,

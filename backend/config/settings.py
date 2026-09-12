@@ -91,12 +91,16 @@ GREEN_ACTIONS = {
     "scan_and_categorize_files", "categorize_files", "scan_files",
     "ask_user_form", "request_user_form", "prompt_user_form",
     "get_user_profile", "user_profile", "read_user_profile",
-    "update_user_profile", "save_user_fact"
+    "update_user_profile", "save_user_fact",
+    "read_word_document", "read_word_file", "read_docx"
 }
 YELLOW_ACTIONS = {
     "modify_existing_file", "overwrite_document", "write_spreadsheet",
     "move_file", "rename_file", "organize_files", "write_file",
-    "clean_temporary_files", "clean_temp"
+    "clean_temporary_files", "clean_temp",
+    "edit_word_document", "edit_word_file", "edit_docx",
+    "edit_pdf_document", "edit_pdf",
+    "edit_excel_file", "edit_excel_workbook", "edit_excel", "edit_spreadsheet"
 }
 RED_ACTIONS = {
     "delete_file", "delete_files", "safe_delete_files", "send_email", "submit_form",

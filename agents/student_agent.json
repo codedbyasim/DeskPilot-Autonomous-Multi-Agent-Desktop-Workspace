@@ -3,9 +3,13 @@
   "allowed_tools": [
     "read_pdf",
     "extract_pdf_tables",
+    "edit_pdf_document",
     "search_web",
     "search_and_read",
-    "create_word_report"
+    "read_word_document",
+    "edit_word_document",
+    "create_word_report",
+    "verify_word_document"
   ],
   "category": "template",
   "color": "teal",

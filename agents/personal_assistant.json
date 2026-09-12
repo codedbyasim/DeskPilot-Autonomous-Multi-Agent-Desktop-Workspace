@@ -34,6 +34,12 @@
     "search_web",
     "search_and_read",
     "organize_files",
+    "read_word_document",
+    "edit_word_document",
+    "read_pdf",
+    "edit_pdf_document",
+    "read_excel_file",
+    "edit_excel_file",
     "ask_user_form",
     "get_user_profile",
     "update_user_profile"
