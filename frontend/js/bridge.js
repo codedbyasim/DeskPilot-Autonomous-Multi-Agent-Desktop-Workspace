@@ -141,6 +141,8 @@ class DeskPilotBridgeClient {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ task_id: args[0] })
                     })).json();
+                case 'get_tasks':
+                    return await (await fetch(`${base}/tasks`)).json();
                 case 'respond_to_approval':
                     return await (await fetch(`${base}/approval`, {
                         method: 'POST',
@@ -175,6 +177,16 @@ class DeskPilotBridgeClient {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ file_path: args[0] })
                     })).json();
+                case 'open_file_location':
+                    return await (await fetch(`${base}/open_folder`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ file_path: args[0] })
+                    })).json();
+                case 'check_winget_installed':
+                    return await (await fetch(`${base}/winget/status`)).json();
+                case 'get_winget_allowlist':
+                    return await (await fetch(`${base}/winget/allowlist`)).json();
                 case 'get_available_tools_metadata':
                     return await (await fetch(`${base}/tools_metadata`)).json();
                 case 'get_chat_sessions':
@@ -312,6 +324,10 @@ class DeskPilotBridgeClient {
         return await this._call('stop_agent_task', taskId);
     }
 
+    async getTasks() {
+        return await this._call('get_tasks') || [];
+    }
+
     async respondApproval(requestId, approved, approveAll = false) {
         return await this._call('respond_to_approval', requestId, approved, approveAll);
     }
@@ -342,6 +358,18 @@ class DeskPilotBridgeClient {
 
     async openDeliverable(filePath) {
         return await this._call('open_deliverable', filePath);
+    }
+
+    async openFileLocation(filePath) {
+        return await this._call('open_file_location', filePath);
+    }
+
+    async checkWingetInstalled() {
+        return await this._call('check_winget_installed') || { available: false, path: '', message: 'Unknown' };
+    }
+
+    async getWingetAllowlist() {
+        return await this._call('get_winget_allowlist') || [];
     }
 
     async getAvailableToolsMetadata() {

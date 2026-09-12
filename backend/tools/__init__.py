@@ -23,11 +23,11 @@ from backend.tools.excel_tools import (
 )
 from backend.tools.file_tools import (
     list_files, verify_file_exists, move_file, rename_file, delete_file,
-    create_folder, open_file, take_screenshot, get_desktop_path, get_output_directory,
-    read_file, write_file, organize_files
+    create_folder, open_file, open_folder, get_file_info, take_screenshot,
+    get_desktop_path, get_output_directory, read_file, write_file, organize_files
 )
 from backend.tools.system_tools import (
-    winget_install
+    winget_install, get_winget_allowlist, check_software_installed, launch_application
 )
 
 logger = get_logger("tools.registry")
@@ -67,6 +67,10 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "organize_desktop": organize_files,  # Alias
     "organize_folder": organize_files,  # Alias
     "open_file": open_file,
+    "open_folder": open_folder,
+    "reveal_in_explorer": open_folder,  # Alias
+    "get_file_info": get_file_info,
+    "file_info": get_file_info,  # Alias
     "take_screenshot": take_screenshot,
     "get_desktop_path": get_desktop_path,
     "get_output_directory": get_output_directory,
@@ -78,6 +82,16 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     # ── System / Software Installation Tools ─────────────────────────────────
     "winget_install": winget_install,
     "install_software": winget_install,  # Alias
+    "get_winget_allowlist": get_winget_allowlist,
+    "list_allowed_software": get_winget_allowlist,  # Alias
+    "show_software_catalog": get_winget_allowlist,  # Alias
+    "check_software_installed": check_software_installed,
+    "check_app_installed": check_software_installed,  # Alias
+    "is_software_installed": check_software_installed,  # Alias
+    "launch_application": launch_application,
+    "open_application": launch_application,  # Alias
+    "open_app": launch_application,  # Alias
+    "launch_app": launch_application,  # Alias
 }
 
 

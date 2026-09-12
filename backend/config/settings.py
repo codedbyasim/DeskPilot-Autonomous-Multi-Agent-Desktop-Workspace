@@ -77,9 +77,13 @@ GREEN_ACTIONS = {
     "create_word_document", "create_word_report", "create_workbook",
     "create_excel_workbook", "create_reconciliation_report", "read_excel_file",
     "list_files", "verify_file_exists", "create_folder", "read_file",
-    "open_file", "take_screenshot", "get_desktop_path", "get_output_directory",
+    "open_file", "open_folder", "reveal_in_explorer", "get_file_info", "file_info",
+    "take_screenshot", "get_desktop_path", "get_output_directory",
     "extract_pdf_tables", "extract_pdf_invoice", "list_pdfs_in_folder",
-    "verify_word_document", "verify_excel_workbook", "search_and_read"
+    "verify_word_document", "verify_excel_workbook", "search_and_read",
+    "get_winget_allowlist", "list_allowed_software", "show_software_catalog",
+    "check_software_installed", "check_app_installed", "is_software_installed",
+    "launch_application", "open_application", "open_app", "launch_app"
 }
 YELLOW_ACTIONS = {
     "modify_existing_file", "overwrite_document", "write_spreadsheet",

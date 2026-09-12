@@ -378,24 +378,159 @@ def delete_file(file_path: str) -> str:
 @tool
 def open_file(file_path: str) -> str:
     """
-    Open a deliverable file (.docx, .xlsx, .pdf, .png, etc.) in its default desktop application (Word, Excel, PDF viewer, Photos).
+    Open a deliverable file (.docx, .xlsx, .pdf, .png, etc.) in its default desktop application
+    (Word, Excel, PDF viewer, Photos, etc.).
+    Automatically searches Desktop and DeskPilot output directory if path is relative.
 
     Args:
-        file_path: Path to the file to open
+        file_path: Path to the file to open (absolute, relative, or just filename)
+
+    Returns:
+        Success or error message with file details
+    """
+    path = _resolve_path(file_path)
+
+    # Extended search if not found — try Desktop, output dir, and DeskPilot_Output subdirs
+    if not path.exists():
+        filename = Path(file_path).name
+        search_roots = [
+            Path.home() / "Desktop",
+            DEFAULT_OUTPUT_DIR,
+            Path.home() / "Desktop" / "DeskPilot_Output",
+            Path.home() / "Documents",
+        ]
+        for root in search_roots:
+            candidate = root / filename
+            if candidate.exists():
+                path = candidate
+                logger.info(f"Resolved '{file_path}' → '{path}' via extended search")
+                break
+
+    if not path.exists():
+        return (
+            f"Error: File not found: '{file_path}'\n"
+            f"Searched: Desktop, Documents, DeskPilot Output folder.\n"
+            f"Tip: Provide the full absolute path to ensure the file is found."
+        )
+
+    if not path.is_file():
+        return f"Error: '{path}' is a directory. Use 'open_folder' to open a folder in Explorer."
+
+    size = path.stat().st_size
+    size_str = f"{size // 1024} KB" if size > 1024 else f"{size} B"
+
+    try:
+        os.startfile(str(path))
+        logger.info(f"Opened file in default application: {path.name} ({size_str})")
+        return (
+            f"SUCCESS: Opened '{path.name}' in its default desktop application.\n"
+            f"  Full path: {path}\n"
+            f"  Size: {size_str}"
+        )
+    except FileNotFoundError:
+        return f"Error: No default application is associated with '{path.suffix}' files. Please install a suitable application."
+    except PermissionError:
+        return f"Error: Permission denied when opening '{path.name}'. The file may be in use by another process."
+    except Exception as e:
+        return f"Error opening file '{path.name}': {str(e)}"
+
+
+@tool
+def open_folder(folder_path: str = "") -> str:
+    """
+    Open a folder in Windows Explorer so the user can browse its contents visually.
+    Useful for revealing where generated deliverables (Word reports, Excel sheets, PDFs) were saved.
+
+    Args:
+        folder_path: Path to the folder to open. Pass 'Desktop' for the Desktop, or leave empty
+                     for the DeskPilot output directory. Can also be a file path — will open the containing folder.
 
     Returns:
         Success or error message
     """
-    path = _resolve_path(file_path)
-    if not path.exists():
-        return f"Error: File not found: '{file_path}' (resolved: '{path}')"
+    if not folder_path or not folder_path.strip():
+        target = DEFAULT_OUTPUT_DIR
+    else:
+        path = _resolve_path(folder_path, prefer_desktop=True)
+        # If a file path is given, open its parent folder
+        if path.is_file():
+            target = path.parent
+        else:
+            target = path
+
+    if not target.exists():
+        return f"Error: Folder not found: '{folder_path}' (resolved: '{target}')"
 
     try:
-        os.startfile(str(path))
-        logger.info(f"Opened file in default application: {path.name}")
-        return f"SUCCESS: Opened '{path.name}' in desktop application"
+        import subprocess
+        subprocess.Popen(["explorer", str(target)])
+        logger.info(f"Opened folder in Explorer: {target}")
+        return f"SUCCESS: Opened folder '{target.name}' in Windows Explorer.\n  Path: {target}"
     except Exception as e:
-        return f"Error opening file: {str(e)}"
+        return f"Error opening folder: {str(e)}"
+
+
+@tool
+def get_file_info(file_path: str) -> str:
+    """
+    Get detailed metadata about a file without opening it — name, size, type, modification date, and full path.
+    Useful for verifying a deliverable was saved correctly before presenting it to the user.
+
+    Args:
+        file_path: Path to the file (absolute or relative)
+
+    Returns:
+        Detailed file metadata or error
+    """
+    path = _resolve_path(file_path)
+
+    # Extended search
+    if not path.exists():
+        filename = Path(file_path).name
+        for root in [Path.home() / "Desktop", DEFAULT_OUTPUT_DIR]:
+            candidate = root / filename
+            if candidate.exists():
+                path = candidate
+                break
+
+    if not path.exists():
+        return f"Error: File not found: '{file_path}'"
+
+    if not path.is_file():
+        return f"Error: '{path}' is a directory, not a file."
+
+    stat = path.stat()
+    size = stat.st_size
+    size_str = f"{size / 1024 / 1024:.2f} MB" if size > 1024 * 1024 else (f"{size // 1024} KB" if size > 1024 else f"{size} B")
+    mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    ctime = datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M:%S")
+
+    ext_labels = {
+        ".docx": "Microsoft Word Document",
+        ".xlsx": "Microsoft Excel Workbook",
+        ".pdf": "PDF Document",
+        ".png": "PNG Image",
+        ".jpg": "JPEG Image",
+        ".jpeg": "JPEG Image",
+        ".txt": "Plain Text File",
+        ".csv": "CSV Spreadsheet",
+        ".pptx": "PowerPoint Presentation",
+        ".mp4": "MP4 Video",
+        ".zip": "ZIP Archive",
+    }
+    file_type = ext_labels.get(path.suffix.lower(), f"{path.suffix.upper()} File" if path.suffix else "Unknown Type")
+
+    return (
+        f"File Information:\n"
+        f"{'─' * 50}\n"
+        f"  Name:      {path.name}\n"
+        f"  Type:      {file_type}\n"
+        f"  Size:      {size_str} ({size:,} bytes)\n"
+        f"  Location:  {path.parent}\n"
+        f"  Full Path: {path}\n"
+        f"  Modified:  {mtime}\n"
+        f"  Created:   {ctime}"
+    )
 
 
 @tool

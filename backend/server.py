@@ -10,7 +10,7 @@ import json
 import time
 import queue
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Optional
 
 # Ensure project root is on sys.path
 _root = Path(__file__).resolve().parent.parent
@@ -143,6 +143,12 @@ def stop_task():
     return jsonify(res)
 
 
+@app.route("/api/tasks", methods=["GET"])
+def get_tasks_route():
+    return jsonify(bridge.get_tasks())
+
+
+
 @app.route("/api/approval", methods=["POST"])
 def respond_approval():
     data = request.get_json() or {}
@@ -192,11 +198,29 @@ def get_audit():
 
 
 @app.route("/api/open_file", methods=["POST"])
-def open_file():
+def open_file_route():
     data = request.get_json() or {}
     path = data.get("file_path", "")
     res = bridge.open_deliverable(path)
     return jsonify(res)
+
+
+@app.route("/api/open_folder", methods=["POST"])
+def open_folder_route():
+    data = request.get_json() or {}
+    path = data.get("file_path", "")
+    res = bridge.open_file_location(path)
+    return jsonify(res)
+
+
+@app.route("/api/winget/status", methods=["GET"])
+def winget_status():
+    return jsonify(bridge.check_winget_installed())
+
+
+@app.route("/api/winget/allowlist", methods=["GET"])
+def winget_allowlist():
+    return jsonify(bridge.get_winget_allowlist())
 
 
 @app.route("/api/tools_metadata", methods=["GET"])

@@ -121,9 +121,14 @@ class DeskPilotBridge:
         self._active_tasks[task_id] = {
             "task_id": task_id,
             "agent_id": agent_id,
+            "agent_name": agent.get("name", agent_id),
             "instruction": clean_instruction,
             "started_at": datetime.now().isoformat(),
             "status": "running",
+            "steps": [],
+            "deliverables": [],
+            "result": None,
+            "error": None,
         }
         self.registry.set_agent_status(agent_id, "running")
 
@@ -158,6 +163,12 @@ class DeskPilotBridge:
         logger.info(f"Starting task execution [{task_id}] for agent '{agent_id}'")
 
         def _on_step(tool_name: str, status: str):
+            if task_id in self._active_tasks:
+                self._active_tasks[task_id]["steps"].append({
+                    "tool": tool_name,
+                    "status": status,
+                    "time": datetime.now().isoformat(),
+                })
             emit_event("deskpilot:step", {
                 "task_id": task_id,
                 "agent_id": agent_id,
@@ -192,23 +203,44 @@ class DeskPilotBridge:
             )
 
             if res.get("success"):
+                import re
+                summary = res.get("result", "Task completed successfully.")
+                deliverables = re.findall(r'([A-Za-z]:\\[^\s\n\r"\'<>|]+\.(?:docx|xlsx|pdf|png|jpg|txt|csv))', str(summary))
+                if task_id in self._active_tasks:
+                    self._active_tasks[task_id]["status"] = "completed"
+                    self._active_tasks[task_id]["result"] = summary
+                    self._active_tasks[task_id]["deliverables"] = deliverables
+                    self._active_tasks[task_id]["completed_at"] = datetime.now().isoformat()
+
                 emit_event("deskpilot:task_complete", {
                     "task_id": task_id,
                     "agent_id": agent_id,
-                    "summary": res.get("result", "Task completed successfully."),
+                    "summary": summary,
+                    "deliverables": deliverables,
                     "audit_path": res.get("audit_path", ""),
                     "timestamp": datetime.now().isoformat(),
                 })
             else:
+                err = res.get("error", "Task execution failed")
+                if task_id in self._active_tasks:
+                    self._active_tasks[task_id]["status"] = "failed"
+                    self._active_tasks[task_id]["error"] = err
+                    self._active_tasks[task_id]["completed_at"] = datetime.now().isoformat()
+
                 emit_event("deskpilot:task_failed", {
                     "task_id": task_id,
                     "agent_id": agent_id,
-                    "error": res.get("error", "Task execution failed"),
+                    "error": err,
                     "timestamp": datetime.now().isoformat(),
                 })
 
         except Exception as e:
             logger.error(f"Task error in [{task_id}]: {e}")
+            if task_id in self._active_tasks:
+                self._active_tasks[task_id]["status"] = "failed"
+                self._active_tasks[task_id]["error"] = str(e)
+                self._active_tasks[task_id]["completed_at"] = datetime.now().isoformat()
+
             emit_event("deskpilot:task_failed", {
                 "task_id": task_id,
                 "agent_id": agent_id,
@@ -217,8 +249,14 @@ class DeskPilotBridge:
             })
         finally:
             self.registry.set_agent_status(agent_id, "active")
-            if task_id in self._active_tasks:
-                self._active_tasks[task_id]["status"] = "finished"
+            if task_id in self._active_tasks and self._active_tasks[task_id]["status"] == "running":
+                self._active_tasks[task_id]["status"] = "completed"
+
+    def get_tasks(self) -> List[Dict[str, Any]]:
+        """Returns all active and past tasks sorted by started_at descending."""
+        tasks = list(self._active_tasks.values())
+        tasks.sort(key=lambda t: t.get("started_at", ""), reverse=True)
+        return tasks
 
     def stop_agent_task(self, task_id: str) -> Dict[str, Any]:
         """Cancel a running task."""
@@ -307,15 +345,111 @@ class DeskPilotBridge:
 
     def open_deliverable(self, file_path: str) -> Dict[str, Any]:
         """
-        Opens a generated deliverable file (Word doc, Excel sheet, or image) in the user's default desktop app.
+        Opens a generated deliverable file (Word doc, Excel sheet, PDF, or image) in the user's default desktop app.
+        Returns rich metadata including file name, size, type, and full path for the frontend card.
         """
         try:
-            from backend.tools.file_tools import open_file
-            res = open_file(file_path)
-            return {"success": True, "message": res}
+            from pathlib import Path
+            p = Path(file_path)
+            if p.exists() and p.is_file():
+                stat = p.stat()
+                size = stat.st_size
+                size_str = f"{size / 1024 / 1024:.2f} MB" if size > 1024 * 1024 else (f"{size // 1024} KB" if size > 1024 else f"{size} B")
+                ext_icons = {".docx": "file-text", ".xlsx": "table", ".pdf": "file-text", ".png": "image", ".jpg": "image", ".jpeg": "image", ".csv": "table"}
+                icon = ext_icons.get(p.suffix.lower(), "file")
+                from backend.tools.file_tools import open_file
+                res = open_file(file_path)
+                return {
+                    "success": True,
+                    "message": res,
+                    "file_name": p.name,
+                    "file_path": str(p),
+                    "folder_path": str(p.parent),
+                    "size": size_str,
+                    "icon": icon,
+                    "extension": p.suffix.lower(),
+                }
+            else:
+                from backend.tools.file_tools import open_file
+                res = open_file(file_path)
+                return {"success": True, "message": res}
         except Exception as e:
             logger.error(f"Failed to open deliverable '{file_path}': {e}")
             return {"success": False, "error": str(e)}
+
+    def open_file_location(self, file_path: str) -> Dict[str, Any]:
+        """
+        Opens the containing folder of a deliverable in Windows Explorer.
+        Lets the user visually browse where generated files were saved.
+        """
+        try:
+            from backend.tools.file_tools import open_folder
+            res = open_folder(file_path)
+            return {"success": True, "message": res}
+        except Exception as e:
+            logger.error(f"Failed to open file location for '{file_path}': {e}")
+            return {"success": False, "error": str(e)}
+
+    def check_winget_installed(self) -> Dict[str, Any]:
+        """
+        Checks whether Windows Package Manager (winget) is available on this system.
+        Returns status and the detected path if found.
+        """
+        try:
+            import shutil, os
+            path = shutil.which("winget")
+            if not path:
+                local_app_data = os.environ.get("LOCALAPPDATA", "")
+                candidate = os.path.join(local_app_data, "Microsoft", "WindowsApps", "winget.exe")
+                if os.path.isfile(candidate):
+                    path = candidate
+            return {
+                "available": bool(path),
+                "path": path or "",
+                "message": f"winget found at: {path}" if path else "winget not found. Install 'App Installer' from Microsoft Store.",
+            }
+        except Exception as e:
+            return {"available": False, "path": "", "message": str(e)}
+
+    def get_winget_allowlist(self) -> List[Dict[str, Any]]:
+        """
+        Returns the complete DeskPilot Winget allow-list as structured data for the frontend Software Manager UI.
+        Each entry includes the package ID, display name, and a category/icon hint.
+        """
+        from backend.config.settings import WINGET_ALLOWLIST
+        icons = {
+            "Mozilla.Firefox": "globe",
+            "Google.Chrome": "globe",
+            "Microsoft.VisualStudioCode": "code",
+            "Git.Git": "git-branch",
+            "7zip.7zip": "archive",
+            "Notepad++.Notepad++": "file-text",
+            "VideoLAN.VLC": "play-circle",
+            "Obsidian.Obsidian": "book-open",
+            "SlackTechnologies.Slack": "message-square",
+            "Zoom.Zoom": "video",
+        }
+        categories = {
+            "Mozilla.Firefox": "Browser",
+            "Google.Chrome": "Browser",
+            "Microsoft.VisualStudioCode": "Developer",
+            "Git.Git": "Developer",
+            "7zip.7zip": "Utility",
+            "Notepad++.Notepad++": "Text Editor",
+            "VideoLAN.VLC": "Media",
+            "Obsidian.Obsidian": "Productivity",
+            "SlackTechnologies.Slack": "Communication",
+            "Zoom.Zoom": "Communication",
+        }
+        return [
+            {
+                "id": pkg_id,
+                "name": display_name,
+                "icon": icons.get(pkg_id, "package"),
+                "category": categories.get(pkg_id, "Utility"),
+            }
+            for pkg_id, display_name in sorted(WINGET_ALLOWLIST.items(), key=lambda x: x[1])
+        ]
 
     def get_available_tools_metadata(self) -> List[Dict[str, Any]]:
         """Returns all available tools with plain-language metadata for the custom agent builder."""

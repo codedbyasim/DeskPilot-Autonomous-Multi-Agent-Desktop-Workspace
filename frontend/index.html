@@ -287,24 +287,78 @@
             </div>
 
             <!-- ── VIEW 3: TASKS ───────────────────────────────────────────────── -->
+            <!-- ── VIEW 3: TASKS ───────────────────────────────────────────────── -->
             <div id="view-tasks" class="view-panel space-y-6 view-hidden">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-white flex items-center gap-2">
                             <i data-lucide="check-square" class="w-5 h-5 text-indigo-400"></i> Active & Recent Tasks
                         </h2>
-                        <p class="text-xs text-slate-400 mt-1">Monitor autonomous agent executions in real-time.</p>
+                        <p class="text-xs text-slate-400 mt-1">Monitor autonomous agent executions, live progress, and deliverables in real-time.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.DeskPilotApp.openTaskModal('personal_assistant')" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i> Launch New Task
+                        </button>
                     </div>
                 </div>
 
-                <div id="tasks-list" class="space-y-4">
-                    <div class="p-8 text-center bg-[#0E1526] rounded-2xl border border-slate-800">
-                        <i data-lucide="check-circle" class="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-70"></i>
-                        <h4 class="text-sm font-semibold text-white">No Background Tasks Currently Running</h4>
-                        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                            Launch a task from any agent card on the Home dashboard or My Agents tab.
-                        </p>
+                <!-- Task Metrics Bar -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block font-medium">Total Tasks</span>
+                            <span id="metric-tasks-total" class="text-xl font-bold text-white font-mono mt-0.5 block">0</span>
+                        </div>
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                            <i data-lucide="layers" class="w-4 h-4"></i>
+                        </div>
                     </div>
+                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block font-medium">Active / Running</span>
+                            <span id="metric-tasks-running" class="text-xl font-bold text-emerald-400 font-mono mt-0.5 block">0</span>
+                        </div>
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                            <i data-lucide="activity" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block font-medium">Completed</span>
+                            <span id="metric-tasks-completed" class="text-xl font-bold text-indigo-300 font-mono mt-0.5 block">0</span>
+                        </div>
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block font-medium">Failed / Cancelled</span>
+                            <span id="metric-tasks-failed" class="text-xl font-bold text-rose-400 font-mono mt-0.5 block">0</span>
+                        </div>
+                        <div class="w-9 h-9 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Pills & Quick Controls -->
+                <div class="flex items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
+                    <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                        <button onclick="window.DeskPilotApp.filterTasks('all')" id="task-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all">All Tasks</button>
+                        <button onclick="window.DeskPilotApp.filterTasks('running')" id="task-filter-running" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Running</button>
+                        <button onclick="window.DeskPilotApp.filterTasks('completed')" id="task-filter-completed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Completed</button>
+                        <button onclick="window.DeskPilotApp.filterTasks('failed')" id="task-filter-failed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Failed</button>
+                    </div>
+                    <button onclick="window.DeskPilotApp.refreshTasksView()" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all text-xs flex items-center gap-1.5" title="Refresh Tasks">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+
+                <!-- Dynamic Task Cards List -->
+                <div id="tasks-list" class="space-y-3">
+                    <!-- Populated dynamically via app.js loadTasksView() -->
                 </div>
             </div>
 
@@ -379,26 +433,48 @@
                         </div>
                     </div>
 
-                    <!-- Safety & Winget Allowlist -->
+                    <!-- Trust Tiers & Policies Card -->
                     <div class="p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i> Winget Software Allow-List
+                            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i> Trust-Tier Security Policies
                         </h3>
-                        <p class="text-slate-400 leading-relaxed text-[11px]">
-                            DeskPilot strictly prohibits arbitrary executable downloads. Software installations can ONLY occur via Windows Package Manager (`winget`) targeting this pre-approved allow-list:
-                        </p>
-                        <div class="flex flex-wrap gap-1.5 pt-1">
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Git.Git</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Mozilla.Firefox</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Google.Chrome</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Microsoft.VisualStudioCode</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">7zip.7zip</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Notepad++.Notepad++</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">VideoLAN.VLC</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Obsidian.Obsidian</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">SlackTechnologies.Slack</span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">Zoom.Zoom</span>
+                        <div class="space-y-2 text-slate-300">
+                            <div class="flex items-center justify-between py-1.5 border-b border-slate-800">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><strong class="text-emerald-400">GREEN TIER</strong> (Autonomous)</span>
+                                <span class="text-[10px] text-slate-400">Web search, file reads, report generation</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1.5 border-b border-slate-800">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span><strong class="text-amber-400">YELLOW TIER</strong> (Confirm/Approve All)</span>
+                                <span class="text-[10px] text-slate-400">File moves, organize desktop, overwrites</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1.5">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span><strong class="text-rose-400">RED TIER</strong> (Strict Confirmation)</span>
+                                <span class="text-[10px] text-slate-400">Winget software installs, file deletion</span>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Software Manager & Winget Catalog (Full Width) -->
+                <div class="mt-6 p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i data-lucide="package-check" class="w-4 h-4 text-indigo-400"></i> Software Manager & Winget Catalog
+                            </h3>
+                            <p class="text-slate-400 leading-relaxed text-[11px] mt-1">
+                                Safe software management strictly constrained to verified packages via Windows Package Manager (<code class="text-indigo-300 font-mono">winget</code>). Every installation requires RED-tier user confirmation.
+                            </p>
+                        </div>
+                        <div id="winget-status-pill" class="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 flex-shrink-0 self-start sm:self-center">
+                            <span id="winget-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span id="winget-status-text">Checking Winget...</span>
+                        </div>
+                    </div>
+
+                    <!-- Software Catalog Grid -->
+                    <div id="software-catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 pt-2">
+                        <!-- Populated dynamically via app.js loadSoftwareCatalog() -->
                     </div>
                 </div>
             </div>
@@ -542,20 +618,9 @@
                         <!-- Streamed step messages -->
                     </div>
 
-                    <!-- Deliverable Action Card (Initially Hidden) -->
-                    <div id="task-deliverable-card" class="hidden p-3 rounded-xl deliverable-card flex items-center justify-between mt-2">
-                        <div class="flex items-center gap-2.5 overflow-hidden">
-                            <div id="deliverable-icon-badge" class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
-                                <i data-lucide="file-text" class="w-4 h-4"></i>
-                            </div>
-                            <div class="truncate">
-                                <span class="text-[10px] text-indigo-300 font-semibold block">Generated Deliverable</span>
-                                <span id="deliverable-filename" class="text-xs text-white font-medium truncate block">Report.docx</span>
-                            </div>
-                        </div>
-                        <button id="btn-open-deliverable" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 flex-shrink-0 shadow-sm">
-                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open File
-                        </button>
+                    <!-- Deliverable Action Cards Container (Initially Hidden) -->
+                    <div id="task-deliverable-card" class="hidden space-y-2 mt-2">
+                        <!-- Populated dynamically via app.js addDeliverable() with rich multi-file cards -->
                     </div>
                 </div>
             </div>
@@ -724,6 +789,32 @@
                 <div class="flex justify-between">
                     <span class="text-slate-400">Action:</span>
                     <span id="approval-action-name" class="font-mono text-amber-400">delete_file</span>
+                </div>
+            </div>
+
+            <!-- Install-specific details card -->
+            <div id="approval-install-info" class="hidden mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="package" class="w-4 h-4 text-rose-400 flex-shrink-0"></i>
+                        <span class="text-xs text-rose-300 font-semibold">Windows Package Manager Install</span>
+                    </div>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 uppercase font-mono">RED TIER</span>
+                </div>
+                <div id="approval-install-pkg" class="font-mono text-[11px] text-slate-200 bg-slate-900/80 px-2.5 py-1.5 rounded border border-slate-800"></div>
+                <div class="text-[11px] text-slate-400 leading-relaxed">
+                    This will download and silently install from the official Microsoft winget repository.
+                    Only pre-approved packages in the DeskPilot allow-list can be installed.
+                </div>
+                <div id="approval-install-progress" class="hidden pt-1">
+                    <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                        <span id="approval-progress-stage">Installing...</span>
+                        <span id="approval-progress-pct" class="font-mono text-rose-400">0%</span>
+                    </div>
+                    <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div id="approval-progress-bar" class="h-full rounded-full bg-gradient-to-r from-rose-500 to-indigo-500 transition-all duration-500" style="width:0%"></div>
+                    </div>
+                    <p id="approval-progress-text" class="text-[10px] text-slate-400 mt-1 truncate"></p>
                 </div>
             </div>
 

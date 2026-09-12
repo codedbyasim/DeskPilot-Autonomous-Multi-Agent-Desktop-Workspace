@@ -12,12 +12,16 @@ function initApp() {
     let taskTimerInterval = null;
     let taskStartTime = null;
     let lastGeneratedDeliverable = null;
+    let generatedDeliverables = [];  // Multi-file deliverables list
     let currentChatSessionId = null;
     let currentChatAgentId = 'personal_assistant';
     let chatSessionsList = [];
     let isChatStreaming = false;
     let chatStreamAccumulator = '';
     let cachedAgents = [];
+    let _toastTimeout = null;
+    let currentTaskFilter = 'all';
+    let cachedTasks = [];
 
     // Agent Color Themes matching PROJECT_BRIEF Section 6 & 7
     const COLOR_THEMES = {
@@ -182,6 +186,10 @@ function initApp() {
         } else if (viewName === 'home') {
             loadAgents();
             loadRecentActivity();
+        } else if (viewName === 'settings') {
+            loadSoftwareCatalog();
+        } else if (viewName === 'tasks') {
+            loadTasksView();
         }
 
         refreshLucide();
@@ -430,7 +438,7 @@ function initApp() {
 
     // ── 3. Task Runner Modal Controller ───────────────────────────────────────
 
-    async function openTaskModal(agentId) {
+    async function openTaskModal(agentId, initialInstruction = '') {
         try {
             const res = await window.DeskPilot.getAgent(agentId);
             if (!res || !res.agent) return;
@@ -453,7 +461,7 @@ function initApp() {
 
             nameEl.textContent = agent.name;
             roleEl.textContent = `${agent.category.toUpperCase()} ASSISTANT • Amazon Bedrock`;
-            inputEl.value = '';
+            inputEl.value = initialInstruction || '';
             liveBox.classList.add('hidden');
             if (deliverableCard) deliverableCard.classList.add('hidden');
             logStream.innerHTML = '';
@@ -500,6 +508,10 @@ function initApp() {
 
         liveBox.classList.remove('hidden');
         if (deliverableCard) deliverableCard.classList.add('hidden');
+        // Clear previous deliverables list when new task starts
+        generatedDeliverables = [];
+        lastGeneratedDeliverable = null;
+        if (deliverableCard) deliverableCard.innerHTML = '';
         logStream.innerHTML = `<div class="text-slate-400">Initiating agent with Amazon Bedrock...</div>`;
         statusText.textContent = "Agent executing...";
         submitBtn.disabled = true;
@@ -532,30 +544,376 @@ function initApp() {
         }
     }
 
-    // ── 4. Deliverable File Opener ────────────────────────────────────────────
+    // ── 3b. Active & Recent Tasks View Controller ─────────────────────────────
 
-    function showDeliverable(filePath) {
-        lastGeneratedDeliverable = filePath;
-        const card = document.getElementById('task-deliverable-card');
-        const nameEl = document.getElementById('deliverable-filename');
-        if (!card || !nameEl) return;
+    async function loadTasksView() {
+        try {
+            if (window.DeskPilot && window.DeskPilot.getTasks) {
+                const tasks = await window.DeskPilot.getTasks();
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    const existingMap = new Map(cachedTasks.map(t => [t.task_id, t]));
+                    tasks.forEach(t => {
+                        existingMap.set(t.task_id, { ...(existingMap.get(t.task_id) || {}), ...t });
+                    });
+                    cachedTasks = Array.from(existingMap.values());
+                    cachedTasks.sort((a, b) => (b.started_at || '').localeCompare(a.started_at || ''));
+                }
+            }
+        } catch (e) {
+            console.warn("Could not fetch tasks from bridge:", e);
+        }
+        renderTaskList();
+    }
 
-        const parts = filePath.replace(/\\/g, '/').split('/');
-        const filename = parts[parts.length - 1] || 'Deliverable';
-        nameEl.textContent = filename;
-        nameEl.setAttribute('title', filePath);
+    function filterTasks(filter) {
+        currentTaskFilter = filter;
+        const tabs = ['all', 'running', 'completed', 'failed'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`task-filter-${t}`);
+            if (btn) {
+                if (t === filter) {
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all";
+                }
+            }
+        });
+        renderTaskList();
+    }
 
-        card.classList.remove('hidden');
+    function renderTaskList() {
+        const listEl = document.getElementById('tasks-list');
+        if (!listEl) return;
+
+        const totalEl = document.getElementById('metric-tasks-total');
+        const runningEl = document.getElementById('metric-tasks-running');
+        const completedEl = document.getElementById('metric-tasks-completed');
+        const failedEl = document.getElementById('metric-tasks-failed');
+
+        const total = cachedTasks.length;
+        const running = cachedTasks.filter(t => t.status === 'running').length;
+        const completed = cachedTasks.filter(t => t.status === 'completed' || t.status === 'finished').length;
+        const failed = cachedTasks.filter(t => t.status === 'failed' || t.status === 'cancelled').length;
+
+        if (totalEl) totalEl.textContent = total;
+        if (runningEl) runningEl.textContent = running;
+        if (completedEl) completedEl.textContent = completed;
+        if (failedEl) failedEl.textContent = failed;
+
+        let filtered = cachedTasks;
+        if (currentTaskFilter === 'running') {
+            filtered = cachedTasks.filter(t => t.status === 'running');
+        } else if (currentTaskFilter === 'completed') {
+            filtered = cachedTasks.filter(t => t.status === 'completed' || t.status === 'finished');
+        } else if (currentTaskFilter === 'failed') {
+            filtered = cachedTasks.filter(t => t.status === 'failed' || t.status === 'cancelled');
+        }
+
+        if (filtered.length === 0) {
+            if (total === 0) {
+                listEl.innerHTML = `
+                    <div class="p-8 text-center bg-[#0E1526] rounded-2xl border border-slate-800 space-y-4">
+                        <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mx-auto">
+                            <i data-lucide="sparkles" class="w-7 h-7 animate-pulse"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-bold text-white">No Background Tasks Launched Yet</h4>
+                            <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                                DeskPilot executes tasks autonomously in the background. Pick any agent below to launch your first task with real-time execution monitoring:
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+                            <button onclick="window.DeskPilotApp.openTaskModal('personal_assistant')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all flex items-center gap-1.5">
+                                <i data-lucide="home" class="w-3.5 h-3.5"></i> Personal Assistant
+                            </button>
+                            <button onclick="window.DeskPilotApp.openTaskModal('work_agent')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 transition-all flex items-center gap-1.5">
+                                <i data-lucide="briefcase" class="w-3.5 h-3.5"></i> Work Agent
+                            </button>
+                            <button onclick="window.DeskPilotApp.openTaskModal('student_agent')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-all flex items-center gap-1.5">
+                                <i data-lucide="graduation-cap" class="w-3.5 h-3.5"></i> Student Helper
+                            </button>
+                            <button onclick="window.DeskPilotApp.openTaskModal('finance_agent')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-all flex items-center gap-1.5">
+                                <i data-lucide="pie-chart" class="w-3.5 h-3.5"></i> Finance Agent
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                listEl.innerHTML = `
+                    <div class="p-8 text-center bg-[#0E1526] rounded-2xl border border-slate-800">
+                        <i data-lucide="filter" class="w-8 h-8 text-slate-500 mx-auto mb-2 opacity-70"></i>
+                        <h4 class="text-sm font-semibold text-white">No tasks matching '${currentTaskFilter}'</h4>
+                        <p class="text-xs text-slate-400 mt-1">Switch to 'All Tasks' to view full execution history.</p>
+                        <button onclick="window.DeskPilotApp.filterTasks('all')" class="mt-3 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition-all">
+                            Show All Tasks
+                        </button>
+                    </div>
+                `;
+            }
+            refreshLucide();
+            return;
+        }
+
+        listEl.innerHTML = filtered.map(t => {
+            const isRunning = t.status === 'running';
+            const isCompleted = t.status === 'completed' || t.status === 'finished';
+            const isFailed = t.status === 'failed';
+            const isCancelled = t.status === 'cancelled';
+
+            let statusBadge = '';
+            if (isRunning) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>Running</span>`;
+            } else if (isCompleted) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-indigo-400"></i>Completed</span>`;
+            } else if (isFailed) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>Failed</span>`;
+            } else {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-400 flex items-center gap-1">Cancelled</span>`;
+            }
+
+            const timeStr = t.started_at ? new Date(t.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+            const escapedInstruction = (t.instruction || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const deliverables = t.deliverables || [];
+
+            return `
+                <div class="p-5 rounded-2xl bg-[#0E1526] border border-slate-800 hover:border-indigo-500/30 transition-all space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                                <i data-lucide="bot" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-xs font-bold text-white">${t.agent_name || t.agent_id || 'Agent Task'}</h4>
+                                    <span class="font-mono text-[10px] text-slate-500">${t.task_id}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-mono">Started: ${timeStr}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${statusBadge}
+                            ${isRunning ? `
+                                <button onclick="window.DeskPilotApp.stopTask('${t.task_id}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 transition-all flex items-center gap-1" title="Cancel this task">
+                                    <i data-lucide="square" class="w-3 h-3"></i> Stop
+                                </button>
+                            ` : `
+                                <button onclick="window.DeskPilotApp.openTaskModal('${t.agent_id || 'personal_assistant'}', '${escapedInstruction}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all flex items-center gap-1" title="Rerun this task">
+                                    <i data-lucide="repeat" class="w-3 h-3"></i> Rerun
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 text-xs text-slate-200 leading-relaxed font-sans">
+                        <span class="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider mb-1">Instruction:</span>
+                        ${t.instruction}
+                    </div>
+
+                    ${(t.result || t.error) ? `
+                        <div class="text-[11px] leading-relaxed p-2.5 rounded-lg ${isFailed ? 'bg-rose-500/10 border border-rose-500/25 text-rose-300' : 'bg-slate-900/40 text-slate-300'}">
+                            ${t.result || t.error}
+                        </div>
+                    ` : ''}
+
+                    ${deliverables.length > 0 ? `
+                        <div class="pt-2 border-t border-slate-800/60 flex flex-wrap items-center gap-2">
+                            <span class="text-[10px] text-indigo-300 font-semibold flex items-center gap-1">
+                                <i data-lucide="package-check" class="w-3.5 h-3.5"></i> Deliverables:
+                            </span>
+                            ${deliverables.map(del => {
+                                const filename = del.split('\\').pop().split('/').pop();
+                                const escapedDel = del.replace(/\\/g, '\\\\');
+                                return `
+                                    <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-xs text-indigo-200">
+                                        <span class="truncate max-w-[160px]" title="${del}">${filename}</span>
+                                        <button onclick="window.DeskPilotApp.openFolderPath('${escapedDel}')" class="p-0.5 hover:text-white" title="Open Folder in Explorer">
+                                            <i data-lucide="folder" class="w-3 h-3"></i>
+                                        </button>
+                                        <button onclick="window.DeskPilotApp.openDeliverablePath('${escapedDel}')" class="p-0.5 hover:text-white" title="Open File">
+                                            <i data-lucide="external-link" class="w-3 h-3"></i>
+                                        </button>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+
         refreshLucide();
     }
 
-    async function openLastDeliverable() {
-        if (!lastGeneratedDeliverable) return;
+    // ── 4. Deliverable File Opener ────────────────────────────────────────────
+
+    // ── Toast Notification Helper ────────────────────────────────────────────
+    function showToast(message, type = 'success', duration = 3500) {
+        let toast = document.getElementById('deskpilot-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'deskpilot-toast';
+            toast.style.cssText = `
+                position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+                display: flex; align-items: center; gap: 10px;
+                padding: 12px 18px; border-radius: 14px;
+                font-size: 13px; font-weight: 600;
+                backdrop-filter: blur(16px);
+                border: 1px solid;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                transform: translateY(20px); opacity: 0;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                max-width: 360px;
+            `;
+            document.body.appendChild(toast);
+        }
+        const colors = {
+            success: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.4)', text: '#34d399', icon: '✓' },
+            error:   { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.4)',  text: '#f87171', icon: '✕' },
+            info:    { bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.4)', text: '#818cf8', icon: 'ℹ' },
+            warning: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)', text: '#fbbf24', icon: '⚠' },
+        };
+        const c = colors[type] || colors.info;
+        toast.style.background = c.bg;
+        toast.style.borderColor = c.border;
+        toast.style.color = c.text;
+        toast.innerHTML = `<span style="font-size:16px">${c.icon}</span><span>${message}</span>`;
+        // Animate in
+        requestAnimationFrame(() => {
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+        });
+        clearTimeout(_toastTimeout);
+        _toastTimeout = setTimeout(() => {
+            toast.style.transform = 'translateY(20px)';
+            toast.style.opacity = '0';
+        }, duration);
+    }
+
+    // ── 4. Deliverable File Opener ────────────────────────────────────────────
+
+    function _getFileTypeInfo(filePath) {
+        const ext = (filePath || '').split('.').pop().toLowerCase();
+        const typeMap = {
+            'docx': { icon: 'file-text',  label: 'Word Document',  color: 'text-blue-400',   bg: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
+            'doc':  { icon: 'file-text',  label: 'Word Document',  color: 'text-blue-400',   bg: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
+            'xlsx': { icon: 'table',      label: 'Excel Workbook', color: 'text-emerald-400',bg: 'bg-emerald-500/20',border: 'border-emerald-500/30' },
+            'xls':  { icon: 'table',      label: 'Excel Workbook', color: 'text-emerald-400',bg: 'bg-emerald-500/20',border: 'border-emerald-500/30' },
+            'csv':  { icon: 'table',      label: 'CSV File',       color: 'text-emerald-400',bg: 'bg-emerald-500/20',border: 'border-emerald-500/30' },
+            'pdf':  { icon: 'file-text',  label: 'PDF Document',   color: 'text-rose-400',   bg: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
+            'png':  { icon: 'image',      label: 'PNG Image',      color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30' },
+            'jpg':  { icon: 'image',      label: 'JPEG Image',     color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30' },
+            'jpeg': { icon: 'image',      label: 'JPEG Image',     color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30' },
+            'txt':  { icon: 'file',       label: 'Text File',      color: 'text-slate-400',  bg: 'bg-slate-500/20',  border: 'border-slate-500/30'  },
+            'md':   { icon: 'file',       label: 'Markdown File',  color: 'text-slate-400',  bg: 'bg-slate-500/20',  border: 'border-slate-500/30'  },
+        };
+        return typeMap[ext] || { icon: 'file', label: 'File', color: 'text-indigo-400', bg: 'bg-indigo-500/20', border: 'border-indigo-500/30' };
+    }
+
+    function addDeliverable(filePath, meta = {}) {
+        lastGeneratedDeliverable = filePath;
+        if (!generatedDeliverables.includes(filePath)) {
+            generatedDeliverables.push(filePath);
+        }
+
+        const container = document.getElementById('task-deliverable-card');
+        if (!container) return;
+
+        const parts = filePath.replace(/\\/g, '/').split('/');
+        const filename = parts[parts.length - 1] || 'Deliverable';
+        const folderPath = parts.slice(0, -1).join('/');
+        const typeInfo = _getFileTypeInfo(filePath);
+        const size = meta.size || '';
+        const cardId = `del-card-${Date.now()}`;
+
+        // Build rich card HTML
+        const cardHTML = `
+        <div id="${cardId}" class="flex items-center justify-between p-3 rounded-xl border ${typeInfo.border} ${typeInfo.bg} gap-3"
+             style="animation: slideInFromBottom 0.35s cubic-bezier(0.34,1.56,0.64,1) both;">
+            <div class="flex items-center gap-2.5 overflow-hidden">
+                <div class="w-9 h-9 rounded-lg ${typeInfo.bg} border ${typeInfo.border} flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="${typeInfo.icon}" class="w-4 h-4 ${typeInfo.color}"></i>
+                </div>
+                <div class="overflow-hidden">
+                    <span class="text-[10px] font-semibold ${typeInfo.color} block">${typeInfo.label}${size ? ' · ' + size : ''}</span>
+                    <span class="text-xs text-white font-medium truncate block" title="${filePath}">${filename}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button class="del-copy-btn px-2 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition-all flex items-center gap-1"
+                    title="Copy full path" data-path="${filePath}">
+                    <i data-lucide="copy" class="w-3 h-3"></i>
+                </button>
+                <button class="del-folder-btn px-2 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition-all flex items-center gap-1"
+                    title="Open containing folder" data-path="${filePath}">
+                    <i data-lucide="folder-open" class="w-3 h-3"></i>
+                </button>
+                <button class="del-open-btn px-3 py-1.5 rounded-lg text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 shadow-sm"
+                    data-path="${filePath}">
+                    <i data-lucide="external-link" class="w-3 h-3"></i> Open
+                </button>
+            </div>
+        </div>`;
+
+        // Replace old single-card or append
+        if (generatedDeliverables.length === 1) {
+            container.innerHTML = `<div class="space-y-2">${cardHTML}</div>`;
+        } else {
+            const innerList = container.querySelector('.space-y-2');
+            if (innerList) innerList.insertAdjacentHTML('beforeend', cardHTML);
+        }
+        container.classList.remove('hidden');
+
+        // Wire up buttons for this new card
+        const card = document.getElementById(cardId);
+        if (card) {
+            card.querySelector('.del-copy-btn')?.addEventListener('click', (e) => {
+                const path = e.currentTarget.getAttribute('data-path');
+                navigator.clipboard.writeText(path).then(() => showToast('Path copied to clipboard', 'info')).catch(() => {});
+            });
+            card.querySelector('.del-folder-btn')?.addEventListener('click', async (e) => {
+                const path = e.currentTarget.getAttribute('data-path');
+                await openFileLocation(path);
+            });
+            card.querySelector('.del-open-btn')?.addEventListener('click', async (e) => {
+                const path = e.currentTarget.getAttribute('data-path');
+                await openDeliverableFile(path);
+            });
+        }
+        refreshLucide();
+    }
+
+    // Keep backward-compatible alias
+    function showDeliverable(filePath) {
+        addDeliverable(filePath);
+    }
+
+    async function openDeliverableFile(filePath) {
         try {
-            const res = await window.DeskPilot.openDeliverable(lastGeneratedDeliverable);
-            console.log("Opened deliverable:", res);
+            const res = await window.DeskPilot.openDeliverable(filePath || lastGeneratedDeliverable);
+            if (res && res.success !== false) {
+                showToast(`Opened ${res.file_name || 'file'} successfully`, 'success');
+            } else {
+                showToast(res?.error || 'Could not open file', 'error');
+            }
         } catch (e) {
-            console.error("Error opening deliverable:", e);
+            showToast('Error opening file: ' + e.message, 'error');
+        }
+    }
+
+    async function openLastDeliverable() {
+        await openDeliverableFile(lastGeneratedDeliverable);
+    }
+
+    async function openFileLocation(filePath) {
+        try {
+            const res = await window.DeskPilot.openFileLocation(filePath || lastGeneratedDeliverable);
+            if (res && res.success !== false) {
+                showToast('Opened folder in Explorer', 'success');
+            } else {
+                showToast(res?.error || 'Could not open folder', 'error');
+            }
+        } catch (e) {
+            showToast('Error opening folder: ' + e.message, 'error');
         }
     }
 
@@ -724,7 +1082,77 @@ function initApp() {
         }
     }
 
-    // ── 6. Human-in-the-Loop Trust Approval Dialog ────────────────────────────
+    // ── 6. Software Manager & Winget Catalog ─────────────────────────────────
+
+    async function loadSoftwareCatalog() {
+        const grid = document.getElementById('software-catalog-grid');
+        const statusText = document.getElementById('winget-status-text');
+        const statusDot = document.getElementById('winget-status-dot');
+        if (!grid) return;
+
+        // 1. Check Winget Availability
+        try {
+            const statusRes = await window.DeskPilot.checkWingetInstalled();
+            if (statusRes && statusRes.available) {
+                if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                if (statusText) {
+                    statusText.textContent = 'Winget Ready (Active)';
+                    statusText.className = 'text-emerald-400 font-semibold';
+                }
+            } else {
+                if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                if (statusText) {
+                    statusText.textContent = 'Winget Not Found';
+                    statusText.className = 'text-amber-400 font-medium';
+                }
+            }
+        } catch (e) {
+            console.warn("Could not check winget status:", e);
+        }
+
+        // 2. Fetch Packages from Backend
+        let packages = [];
+        try {
+            packages = await window.DeskPilot.getWingetAllowlist();
+        } catch (e) {
+            console.warn("Could not fetch winget allowlist:", e);
+        }
+
+        if (!packages || packages.length === 0) {
+            grid.innerHTML = `<div class="col-span-full p-4 text-center text-slate-500 text-xs">No approved software packages found.</div>`;
+            return;
+        }
+
+        grid.innerHTML = packages.map(pkg => `
+            <div class="software-pkg-card p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/40 flex flex-col justify-between transition-all">
+                <div>
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                            <i data-lucide="${pkg.icon || 'package'}" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 uppercase">
+                            ${pkg.category || 'Utility'}
+                        </span>
+                    </div>
+                    <h4 class="text-xs font-bold text-white truncate" title="${pkg.name}">${pkg.name}</h4>
+                    <p class="font-mono text-[10px] text-slate-400 truncate mt-0.5" title="${pkg.id}">${pkg.id}</p>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                        <i data-lucide="shield-check" class="w-3 h-3"></i> Verified
+                    </span>
+                    <button class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 transition-all flex items-center gap-1"
+                            onclick="window.DeskPilotApp.installSoftware('${pkg.id}', '${pkg.name.replace(/'/g, "\\'")}')">
+                        <i data-lucide="download" class="w-3 h-3"></i> Install
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        refreshLucide();
+    }
+
+    // ── 7. Human-in-the-Loop Trust Approval Dialog ────────────────────────────
 
     function showApprovalModal(request) {
         currentPendingApproval = request;
@@ -733,17 +1161,57 @@ function initApp() {
         const agentEl = document.getElementById('approval-agent-name');
         const actionEl = document.getElementById('approval-action-name');
         const tierTag = document.getElementById('approval-tier-tag');
+        const badgeIcon = document.getElementById('approval-badge-icon');
+        const approveAllBtn = document.getElementById('btn-approve-all');
 
-        descEl.textContent = request.description || "Confirmation required before performing this action.";
-        agentEl.textContent = request.agent_id || "DeskPilot Agent";
-        actionEl.textContent = request.action || "System Action";
+        descEl.textContent = request.description || 'Confirmation required before performing this action.';
+        agentEl.textContent = request.agent_id || 'DeskPilot Agent';
+        actionEl.textContent = request.action || 'System Action';
 
-        if (request.tier === 'RED') {
-            tierTag.textContent = "RED TIER (HIGH RISK)";
-            tierTag.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 uppercase";
+        const isInstall = (request.action || '').includes('winget') || (request.action || '') === 'install_software';
+        const isRed = request.tier === 'RED';
+
+        if (isRed) {
+            tierTag.textContent = 'RED TIER — HIGH RISK';
+            tierTag.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 uppercase';
+            modal.querySelector('.modal-container').style.borderColor = 'rgba(239,68,68,0.4)';
+            badgeIcon.className = 'w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 flex-shrink-0';
+            badgeIcon.innerHTML = '<i data-lucide="shield-alert" class="w-5 h-5"></i>';
         } else {
-            tierTag.textContent = "YELLOW TIER (CONFIRMATION)";
-            tierTag.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase";
+            tierTag.textContent = 'YELLOW TIER — CONFIRMATION';
+            tierTag.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase';
+            modal.querySelector('.modal-container').style.borderColor = 'rgba(245,158,11,0.4)';
+            badgeIcon.className = 'w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0';
+            badgeIcon.innerHTML = '<i data-lucide="shield" class="w-5 h-5"></i>';
+        }
+
+        // Approve All hidden for installs (each install must be individually approved — RED tier policy)
+        if (approveAllBtn) {
+            approveAllBtn.style.display = isInstall ? 'none' : '';
+        }
+
+        // Enhanced install-specific info card
+        const installCard = document.getElementById('approval-install-info');
+        const installPkg = document.getElementById('approval-install-pkg');
+        const installProgress = document.getElementById('approval-install-progress');
+        if (isInstall) {
+            // Extract package ID from description text
+            const pkgMatch = (request.description || '').match(/\(([\w.]+)\)/);
+            const pkgId = pkgMatch ? pkgMatch[1] : '';
+
+            if (installPkg) {
+                installPkg.textContent = pkgId ? `Package ID: ${pkgId}` : 'Windows Package Manager (winget)';
+            }
+            if (installProgress) {
+                installProgress.classList.add('hidden');
+                const bar = document.getElementById('approval-progress-bar');
+                if (bar) bar.style.width = '0%';
+            }
+            if (installCard) {
+                installCard.classList.remove('hidden');
+            }
+        } else if (installCard) {
+            installCard.classList.add('hidden');
         }
 
         modal.classList.remove('modal-hidden');
@@ -1214,21 +1682,36 @@ function initApp() {
 
                 const deliverableCards = (m.deliverables || []).map(d => {
                     const filename = d.split('\\').pop().split('/').pop();
+                    const typeInfo = _getFileTypeInfo(d);
+                    const escapedPath = d.replace(/\\/g, '\\\\');
                     return `
-                        <div class="mt-3 p-3 rounded-xl deliverable-card flex items-center justify-between">
+                        <div class="mt-3 p-3 rounded-xl border ${typeInfo.border} ${typeInfo.bg} flex items-center justify-between gap-3"
+                             style="animation: slideInFromBottom 0.35s cubic-bezier(0.34,1.56,0.64,1) both;">
                             <div class="flex items-center gap-2.5 overflow-hidden">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
-                                    <i data-lucide="file-check" class="w-4 h-4"></i>
+                                <div class="w-8 h-8 rounded-lg ${typeInfo.bg} border ${typeInfo.border} flex items-center justify-center flex-shrink-0">
+                                    <i data-lucide="${typeInfo.icon}" class="w-4 h-4 ${typeInfo.color}"></i>
                                 </div>
                                 <div class="overflow-hidden">
-                                    <h5 class="text-xs font-bold text-white truncate">${filename}</h5>
-                                    <span class="text-[10px] text-indigo-300/80 font-mono">Deliverable Ready</span>
+                                    <span class="text-[10px] font-semibold ${typeInfo.color} block">${typeInfo.label}</span>
+                                    <h5 class="text-xs font-bold text-white truncate" title="${d}">${filename}</h5>
                                 </div>
                             </div>
-                            <button onclick="window.DeskPilotApp.openDeliverablePath('${d.replace(/\\/g, '\\\\')}')"
-                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-colors flex items-center gap-1">
-                                <i data-lucide="external-link" class="w-3 h-3"></i> Open File
-                            </button>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <button onclick="navigator.clipboard.writeText('${escapedPath}').then(() => window.DeskPilotApp.toast('Path copied to clipboard', 'info'))"
+                                        class="px-2 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition-all flex items-center gap-1"
+                                        title="Copy full path">
+                                    <i data-lucide="copy" class="w-3 h-3"></i>
+                                </button>
+                                <button onclick="window.DeskPilotApp.openFolderPath('${escapedPath}')"
+                                        class="px-2 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition-all flex items-center gap-1"
+                                        title="Open containing folder in Explorer">
+                                    <i data-lucide="folder-open" class="w-3 h-3"></i>
+                                </button>
+                                <button onclick="window.DeskPilotApp.openDeliverablePath('${escapedPath}')"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all flex items-center gap-1">
+                                    <i data-lucide="external-link" class="w-3 h-3"></i> Open
+                                </button>
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -1410,6 +1893,27 @@ function initApp() {
             }
         });
 
+        window.DeskPilot.on('deskpilot:task_started', (data) => {
+            if (data && data.task_id) {
+                const existingIdx = cachedTasks.findIndex(t => t.task_id === data.task_id);
+                const taskObj = {
+                    task_id: data.task_id,
+                    agent_id: data.agent_id,
+                    agent_name: data.agent_name || data.agent_id,
+                    instruction: data.instruction,
+                    started_at: data.timestamp || new Date().toISOString(),
+                    status: 'running',
+                    deliverables: []
+                };
+                if (existingIdx >= 0) {
+                    cachedTasks[existingIdx] = { ...cachedTasks[existingIdx], ...taskObj };
+                } else {
+                    cachedTasks.unshift(taskObj);
+                }
+                if (currentActiveView === 'tasks') renderTaskList();
+            }
+        });
+
         window.DeskPilot.on('deskpilot:task_complete', (data) => {
             const logStream = document.getElementById('task-log-stream');
             const statusText = document.getElementById('task-status-text');
@@ -1437,6 +1941,16 @@ function initApp() {
                 }
             }
 
+            if (data && data.task_id) {
+                const task = cachedTasks.find(t => t.task_id === data.task_id);
+                if (task) {
+                    task.status = 'completed';
+                    task.result = data.summary;
+                    if (data.deliverables && data.deliverables.length > 0) task.deliverables = data.deliverables;
+                }
+                if (currentActiveView === 'tasks') renderTaskList();
+            }
+
             loadRecentActivity();
         });
 
@@ -1458,10 +1972,58 @@ function initApp() {
                 logStream.appendChild(entry);
                 logStream.scrollTop = logStream.scrollHeight;
             }
+
+            if (data && data.task_id) {
+                const task = cachedTasks.find(t => t.task_id === data.task_id);
+                if (task) {
+                    task.status = 'failed';
+                    task.error = data.error;
+                }
+                if (currentActiveView === 'tasks') renderTaskList();
+            }
+        });
+
+        window.DeskPilot.on('deskpilot:task_cancelled', (data) => {
+            if (data && data.task_id) {
+                const task = cachedTasks.find(t => t.task_id === data.task_id);
+                if (task) {
+                    task.status = 'cancelled';
+                }
+                if (currentActiveView === 'tasks') renderTaskList();
+            }
         });
 
         window.DeskPilot.on('deskpilot:approval_required', (request) => {
             showApprovalModal(request);
+        });
+
+        // Install progress event listener
+        window.DeskPilot.on('deskpilot:install_progress', (data) => {
+            if (!data) return;
+            const progressEl = document.getElementById('approval-install-progress');
+            const barEl = document.getElementById('approval-progress-bar');
+            const textEl = document.getElementById('approval-progress-text');
+            if (progressEl && barEl && textEl) {
+                progressEl.classList.remove('hidden');
+                barEl.style.width = `${data.percent || 0}%`;
+                textEl.textContent = data.message || '';
+            }
+            // Also show in task log if a task is running
+            const logStream = document.getElementById('task-log-stream');
+            if (logStream && data.message) {
+                const entry = document.createElement('div');
+                const isComplete = data.stage === 'complete';
+                const isFailed = ['failed','error','timeout','denied'].includes(data.stage);
+                entry.className = isComplete ? 'text-emerald-400 text-xs mt-1' : isFailed ? 'text-rose-400 text-xs mt-1' : 'text-indigo-300 text-xs mt-1';
+                const pct = data.percent > 0 ? ` [${data.percent}%]` : '';
+                entry.textContent = `📦 ${data.message}${pct}`;
+                logStream.appendChild(entry);
+                logStream.scrollTop = logStream.scrollHeight;
+            }
+            // Toast on install complete/fail
+            if (data.stage === 'complete') showToast(`${data.app_name} installed successfully! 🎉`, 'success', 5000);
+            else if (data.stage === 'already_installed') showToast(`${data.app_name} is already installed.`, 'info');
+            else if (['failed','error','timeout'].includes(data.stage)) showToast(`Install failed: ${data.message}`, 'error', 6000);
         });
 
         // ── Chat Streaming Event Listeners ────────────────────────────────────
@@ -1692,12 +2254,43 @@ function initApp() {
             }
         },
         openDeliverablePath: async (path) => {
-            if (window.DeskPilot && window.DeskPilot.openDeliverable) {
-                try {
-                    await window.DeskPilot.openDeliverable(path);
-                } catch (e) {
-                    console.error("Failed to open deliverable:", e);
+            try {
+                const res = await window.DeskPilot.openDeliverable(path);
+                if (res && res.success !== false) {
+                    showToast(`Opened ${res.file_name || 'file'} successfully`, 'success');
+                } else {
+                    showToast(res?.error || 'Could not open file', 'error');
                 }
+            } catch (e) {
+                showToast('Error opening file: ' + e.message, 'error');
+            }
+        },
+        openFolderPath: async (path) => {
+            try {
+                const res = await window.DeskPilot.openFileLocation(path);
+                if (res && res.success !== false) {
+                    showToast('Opened containing folder in Explorer', 'success');
+                } else {
+                    showToast(res?.error || 'Could not open folder', 'error');
+                }
+            } catch (e) {
+                showToast('Error opening folder: ' + e.message, 'error');
+            }
+        },
+        toast: showToast,
+        loadSoftwareCatalog,
+        installSoftware: (pkgId, name) => {
+            openTaskModal('personal_assistant', `Install ${name} (${pkgId}) via winget`);
+        },
+        filterTasks: (filter) => filterTasks(filter),
+        refreshTasksView: () => loadTasksView(),
+        stopTask: async (taskId) => {
+            try {
+                await window.DeskPilot.stopAgentTask(taskId);
+                showToast(`Task ${taskId} cancellation requested`, 'warning');
+                await loadTasksView();
+            } catch (e) {
+                console.error("Failed to stop task:", e);
             }
         },
         filterAgentsCategory: (category) => {

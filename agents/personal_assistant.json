@@ -20,7 +20,12 @@
     "verify_excel_workbook",
     "search_web",
     "search_and_read",
-    "organize_files"
+    "organize_files",
+    "open_folder",
+    "get_file_info",
+    "check_software_installed",
+    "launch_application",
+    "winget_install"
   ],
   "category": "default",
   "created_by": "system",

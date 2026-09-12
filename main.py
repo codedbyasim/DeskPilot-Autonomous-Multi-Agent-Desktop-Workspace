@@ -4,6 +4,7 @@ Allows running directly with `python main.py` from project root.
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add project root to sys.path
