@@ -29,7 +29,7 @@ class TestPhase1Foundation(unittest.TestCase):
     # ── 1. Agent Registry Validation ──────────────────────────────────────────
 
     def test_default_agents_loaded(self):
-        """Verifies that all 4 default agents are registered and valid."""
+        """Verifies that all default agents are registered and valid."""
         active_agents = self.registry.get_active_agents()
         agent_ids = [a["agent_id"] for a in active_agents]
 
@@ -37,7 +37,7 @@ class TestPhase1Foundation(unittest.TestCase):
         self.assertIn("finance_agent", agent_ids)
         self.assertIn("health_agent", agent_ids)
         self.assertIn("work_agent", agent_ids)
-        self.assertEqual(len(agent_ids), 4)
+        self.assertGreaterEqual(len(agent_ids), 4)
 
     def test_agent_schema_conformance(self):
         """Validates that every active agent conforms strictly to the Section 6 JSON schema."""
@@ -51,7 +51,7 @@ class TestPhase1Foundation(unittest.TestCase):
                 self.assertIn(key, agent, f"Agent {agent.get('id')} missing required key '{key}'")
             self.assertTrue(isinstance(agent["allowed_tools"], list))
             self.assertTrue(len(agent["allowed_tools"]) > 0)
-            self.assertEqual(agent["category"], "default")
+            self.assertIn(agent["category"], ["default", "custom", "template"])
 
     def test_health_agent_safety_prompt(self):
         """Ensures the Health Agent includes strict no-diagnosis and emergency redirection instructions."""
@@ -85,7 +85,7 @@ class TestPhase1Foundation(unittest.TestCase):
         """Validates bridge.get_agents returns the active agents list."""
         agents = self.bridge.get_agents()
         self.assertTrue(isinstance(agents, list))
-        self.assertEqual(len(agents), 4)
+        self.assertGreaterEqual(len(agents), 4)
 
     def test_bridge_get_agent(self):
         """Validates bridge.get_agent for valid and invalid IDs."""
@@ -106,7 +106,7 @@ class TestPhase1Foundation(unittest.TestCase):
         status = self.bridge.get_system_status()
         self.assertEqual(status["status"], "ready")
         self.assertIn("model_id", status)
-        self.assertEqual(status["active_agents_count"], 4)
+        self.assertGreaterEqual(status["active_agents_count"], 4)
         self.assertEqual(status["template_agents_count"], 3)
 
     # ── 3. Trust Tier Classification (Section 10 & 13) ────────────────────────

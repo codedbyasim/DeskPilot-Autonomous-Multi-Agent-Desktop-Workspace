@@ -83,15 +83,22 @@ GREEN_ACTIONS = {
     "verify_word_document", "verify_excel_workbook", "search_and_read",
     "get_winget_allowlist", "list_allowed_software", "show_software_catalog",
     "check_software_installed", "check_app_installed", "is_software_installed",
-    "launch_application", "open_application", "open_app", "launch_app"
+    "launch_application", "open_application", "open_app", "launch_app",
+    "get_storage_status", "check_storage", "storage_status",
+    "get_system_info", "system_diagnostics", "system_info",
+    "get_running_processes", "list_processes", "running_processes",
+    "explain_file_purpose", "explain_file", "file_purpose",
+    "scan_and_categorize_files", "categorize_files", "scan_files"
 }
 YELLOW_ACTIONS = {
     "modify_existing_file", "overwrite_document", "write_spreadsheet",
-    "move_file", "rename_file", "organize_files", "write_file"
+    "move_file", "rename_file", "organize_files", "write_file",
+    "clean_temporary_files", "clean_temp"
 }
 RED_ACTIONS = {
-    "delete_file", "send_email", "submit_form", "financial_transaction",
-    "bulk_delete", "publish_content", "install_software", "system_execute"
+    "delete_file", "delete_files", "safe_delete_files", "send_email", "submit_form",
+    "financial_transaction", "bulk_delete", "publish_content", "install_software",
+    "system_execute"
 }
 GREEN_TIER_ACTIONS = GREEN_ACTIONS
 YELLOW_TIER_ACTIONS = YELLOW_ACTIONS

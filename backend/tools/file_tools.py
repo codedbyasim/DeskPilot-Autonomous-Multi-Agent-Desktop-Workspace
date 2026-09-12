@@ -12,8 +12,26 @@ from datetime import datetime
 from backend.config.settings import DEFAULT_OUTPUT_DIR
 from backend.utils.logger import get_logger
 from backend.utils.trust import request_approval
+from backend.utils.events import emit_event
+
+try:
+    import send2trash
+    HAS_SEND2TRASH = True
+except ImportError:
+    HAS_SEND2TRASH = False
 
 logger = get_logger("tools.file")
+
+
+def _format_size(num_bytes: int) -> str:
+    """Format bytes into human readable KB, MB, GB."""
+    n = float(num_bytes)
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if abs(n) < 1024.0:
+            return f"{n:3.1f} {unit}".strip()
+        n /= 1024.0
+    return f"{n:.1f} PB"
+
 
 
 def _resolve_path(path_str: str, prefer_desktop: bool = False) -> Path:
@@ -339,40 +357,189 @@ def rename_file(file_path: str, new_name: str) -> str:
 
 
 @tool
-def delete_file(file_path: str) -> str:
+def delete_file(file_path: str, permanent: bool = False) -> str:
     """
-    Delete a file or folder permanently.
-    Requires RED tier explicit approval before execution.
+    Delete a file or folder safely.
+    By default (permanent=False), safely moves the file to the Windows Recycle Bin,
+    allowing the user to restore it at any time.
+    If permanent=True, deletes the file permanently without Recycle Bin recovery.
+    Always requires RED tier user confirmation.
 
     Args:
-        file_path: Path of the file or folder to delete
+        file_path: Path or filename of the file or folder to delete (e.g. 'TB_Lab_Report.docx', 'Desktop/temp.txt')
+        permanent: If True, permanently destroy file. Default is False (safely move to Windows Recycle Bin).
 
     Returns:
-        Success or error message
+        Detailed status message indicating successful deletion or cancellation.
     """
     path = _resolve_path(file_path)
-    logger.info(f"Delete requested: {path}")
+    logger.info(f"Delete requested: {path} (permanent={permanent})")
+
+    if not path.exists():
+        cand = Path.home() / "Desktop" / Path(file_path).name
+        if cand.exists():
+            path = cand
 
     if not path.exists():
         return f"Error: Item not found: '{file_path}' (resolved: '{path}')"
 
     item_type = "folder" if path.is_dir() else "file"
+    try:
+        size_bytes = path.stat().st_size if path.is_file() else sum(f.stat().st_size for f in path.rglob('*') if f.is_file())
+        size_str = _format_size(size_bytes)
+    except Exception:
+        size_str = "unknown size"
+
+    action_desc = "Permanently delete" if permanent else "Move to Windows Recycle Bin"
+    safety_note = "(Warning: Cannot be undone)" if permanent else "(Safe & 100% Recoverable from Recycle Bin)"
+    approval_prompt = f"{action_desc} {item_type} '{path.name}' ({size_str})? {safety_note}"
 
     # Human-in-the-loop Red tier approval gate
-    if not request_approval("delete_file", f"Permanently delete {item_type} '{path.name}' at '{path}'?"):
+    if not request_approval("delete_file", approval_prompt, tier="RED"):
         return f"Cancelled: User denied permission to delete '{path.name}'"
 
     try:
-        if path.is_dir():
-            _safe_retry_op(lambda: shutil.rmtree(str(path)))
-            logger.info(f"Directory permanently deleted: {path}")
-            return f"SUCCESS: Permanently deleted folder '{path.name}'"
+        if not permanent and HAS_SEND2TRASH:
+            send2trash.send2trash(str(path))
+            logger.info(f"Safely sent to Recycle Bin: {path}")
+            emit_event("deskpilot:system_alert", {
+                "type": "warning",
+                "title": "Recycle Bin Deletion",
+                "message": f"Moved '{path.name}' ({size_str}) to Windows Recycle Bin (Recoverable).",
+                "action_type": "delete_file"
+            })
+            return (
+                f"SUCCESS: Safely moved {item_type} '{path.name}' ({size_str}) to the Windows Recycle Bin.\n"
+                f"Original location: {path.parent}\n"
+                f"Status: Safe & Recoverable (You can restore this anytime from your Windows Recycle Bin)."
+            )
         else:
-            _safe_retry_op(lambda: path.unlink())
+            if path.is_dir():
+                _safe_retry_op(lambda: shutil.rmtree(str(path)))
+            else:
+                _safe_retry_op(lambda: path.unlink())
             logger.info(f"File permanently deleted: {path}")
-            return f"SUCCESS: Permanently deleted file '{path.name}'"
+            emit_event("deskpilot:system_alert", {
+                "type": "error",
+                "title": "Permanent Deletion",
+                "message": f"Permanently deleted '{path.name}' ({size_str}).",
+                "action_type": "delete_file_permanent"
+            })
+            return f"SUCCESS: Permanently deleted {item_type} '{path.name}' ({size_str})."
     except Exception as e:
         return f"Error deleting {item_type}: {str(e)}"
+
+
+@tool
+def delete_files(file_paths: str, permanent: bool = False, reason: str = "") -> str:
+    """
+    Batch delete multiple files or folders safely in one unified operation.
+    Accepts a comma-separated list of filenames/paths, or a wildcard pattern (e.g. 'Desktop/*.docx', 'Desktop/*.tmp').
+    By default (permanent=False), moves all files to Windows Recycle Bin so they can be restored.
+    Requests user confirmation ONCE for the entire batch to avoid multiple annoying prompts.
+
+    Args:
+        file_paths: Comma-separated paths, list of filenames, or wildcard pattern (e.g. 'file1.docx, file2.docx' or 'Desktop/*.tmp')
+        permanent: If True, delete permanently. Default is False (move to Recycle Bin).
+        reason: Optional user or agent reason for deletion (e.g. 'Cleaning duplicate Word documents')
+
+    Returns:
+        Comprehensive summary of deleted files, total storage reclaimed, and Recycle Bin status.
+    """
+    raw_paths = []
+    if isinstance(file_paths, str):
+        clean_str = file_paths.strip()
+        if "*" in clean_str or "?" in clean_str:
+            p = Path(clean_str)
+            parent = _resolve_path(str(p.parent) if str(p.parent) != "." else "Desktop")
+            if parent.exists():
+                raw_paths = [str(f) for f in parent.glob(p.name)]
+            else:
+                raw_paths = [str(f) for f in (Path.home() / "Desktop").glob(p.name)]
+        else:
+            raw_paths = [p.strip().strip("'\"") for p in clean_str.split(",") if p.strip()]
+    elif isinstance(file_paths, list):
+        raw_paths = [str(p) for p in file_paths]
+
+    if not raw_paths:
+        return "Error: No file paths provided for batch deletion."
+
+    items_to_delete = []
+    missing = []
+    total_bytes = 0
+
+    for item in raw_paths:
+        p = _resolve_path(item)
+        if not p.exists():
+            cand = Path.home() / "Desktop" / Path(item).name
+            if cand.exists():
+                p = cand
+        if p.exists():
+            items_to_delete.append(p)
+            try:
+                total_bytes += p.stat().st_size if p.is_file() else sum(f.stat().st_size for f in p.rglob('*') if f.is_file())
+            except Exception:
+                pass
+        else:
+            missing.append(item)
+
+    if not items_to_delete:
+        msg = "Error: None of the specified files were found to delete."
+        if missing:
+            msg += f"\nMissing: {', '.join(missing)}"
+        return msg
+
+    total_size_str = _format_size(total_bytes)
+    action_desc = "Permanently delete" if permanent else "Move to Windows Recycle Bin"
+    safety_note = "(Warning: Permanent, cannot be undone)" if permanent else "(Safe & 100% Recoverable from Recycle Bin)"
+    names_preview = ", ".join([f"'{p.name}'" for p in items_to_delete[:5]])
+    if len(items_to_delete) > 5:
+        names_preview += f" and {len(items_to_delete) - 5} more"
+
+    approval_prompt = (
+        f"{action_desc} {len(items_to_delete)} items ({total_size_str})?\n"
+        f"Files: {names_preview}\n{safety_note}"
+    )
+
+    if not request_approval("delete_files", approval_prompt, tier="RED"):
+        return f"Cancelled: User denied permission to delete {len(items_to_delete)} files."
+
+    succeeded = []
+    failed = []
+
+    for p in items_to_delete:
+        try:
+            if not permanent and HAS_SEND2TRASH:
+                send2trash.send2trash(str(p))
+            else:
+                if p.is_dir():
+                    _safe_retry_op(lambda: shutil.rmtree(str(p)))
+                else:
+                    _safe_retry_op(lambda: p.unlink())
+            succeeded.append(p.name)
+        except Exception as e:
+            failed.append((p.name, str(e)))
+
+    dest = "permanently deleted" if permanent else "moved to the Windows Recycle Bin"
+    emit_event("deskpilot:system_alert", {
+        "type": "warning" if not permanent else "error",
+        "title": "Batch Deletion Complete",
+        "message": f"{len(succeeded)} files ({total_size_str}) {dest}.",
+        "action_type": "delete_files"
+    })
+
+    lines = [f"SUCCESS: {len(succeeded)} file(s) safely {dest} (Reclaimed ~{total_size_str}):"]
+    for name in succeeded:
+        lines.append(f"  • {name}")
+    if failed:
+        lines.append("\nFailed to delete:")
+        for name, err in failed:
+            lines.append(f"  • {name}: {err}")
+    if not permanent:
+        lines.append("\nNote: All items are in your Windows Recycle Bin and can be restored at any time.")
+
+    return "\n".join(lines)
+
 
 
 @tool
@@ -676,3 +843,222 @@ def write_file(file_path: str, content: str = "") -> str:
     except Exception as e:
         logger.error(f"Failed to write file {path}: {e}")
         return f"Error writing file: {str(e)}"
+
+
+@tool
+def explain_file_purpose(file_path: str) -> str:
+    """
+    Intelligently inspects a file on your system (Desktop, Documents, Project, Downloads)
+    to explain WHERE it is, WHAT kind of file it is, and WHAT ITS EXACT PURPOSE & CONTENT IS.
+    Reads file headers, document titles (.docx), spreadsheets (.xlsx), PDF pages, scripts (.py, .js),
+    and explains in clear plain language whether it is important, a deliverable, or safe to delete.
+
+    Args:
+        file_path: Absolute or relative path, or filename (e.g. 'Forensic Exam Preparation.docx', 'main.py')
+
+    Returns:
+        Structured explanation of the file's location, type, contents summary, purpose, and importance rating.
+    """
+    path = _resolve_path(file_path)
+    if not path.exists():
+        candidates = [
+            Path.home() / "Desktop" / Path(file_path).name,
+            DEFAULT_OUTPUT_DIR / Path(file_path).name,
+            Path.home() / "Documents" / Path(file_path).name,
+            Path.home() / "Downloads" / Path(file_path).name,
+        ]
+        for c in candidates:
+            if c.exists():
+                path = c
+                break
+
+    if not path.exists():
+        return f"Error: File '{file_path}' could not be found to analyze."
+
+    stat = path.stat()
+    size_str = _format_size(stat.st_size)
+    mod_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+    ext = path.suffix.lower()
+
+    category = "Unknown"
+    purpose = ""
+    importance = "NORMAL"
+    safe_to_delete = "CAUTION: Verify before deleting"
+
+    if ext == ".docx":
+        category = "Word Document"
+        importance = "IMPORTANT (User Deliverable / Study Document)"
+        safe_to_delete = "NO (User study/work document - move to Recycle Bin if unneeded)"
+        try:
+            import docx
+            doc = docx.Document(str(path))
+            paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+            headings = [p.text.strip() for p in doc.paragraphs if p.style.name.startswith("Heading") or (p.text.strip().isupper() and len(p.text.strip()) < 50)]
+            title = paras[0] if paras else "Untitled"
+            summary_points = []
+            if title:
+                summary_points.append(f"Document Topic: '{title[:80]}'")
+            if headings:
+                summary_points.append(f"Key Sections: {', '.join(headings[:4])}")
+            summary_points.append(f"Length: {len(paras)} paragraphs, {len(doc.tables)} tables")
+            purpose = f"Created as a Word report / document. {'; '.join(summary_points)}."
+        except Exception as e:
+            purpose = f"Word document created on {mod_time}."
+
+    elif ext in [".xlsx", ".xls"]:
+        category = "Excel Spreadsheet"
+        importance = "IMPORTANT (Data / Financial Worksheet)"
+        safe_to_delete = "NO (Contains structured data records)"
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(str(path), read_only=True)
+            sheets = wb.sheetnames
+            purpose = f"Excel workbook containing {len(sheets)} sheet(s): {', '.join(sheets)}."
+        except Exception:
+            purpose = "Excel workbook containing financial, data, or calculation records."
+
+    elif ext == ".pdf":
+        category = "PDF Document"
+        importance = "IMPORTANT (Published Report / Reference)"
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(str(path))
+            page_count = len(reader.pages)
+            first_text = reader.pages[0].extract_text()[:180].replace("\n", " ").strip() if page_count > 0 else ""
+            purpose = f"PDF publication with {page_count} page(s). Preview: '{first_text}'"
+        except Exception:
+            purpose = "PDF document containing formatted reading or reference material."
+
+    elif ext in [".py", ".js", ".html", ".css", ".json"]:
+        category = "Source Code & Script"
+        importance = "CRITICAL (DeskPilot or Project Code)"
+        safe_to_delete = "NO (Deleting will break software/project functionality)"
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                head = [f.readline().strip() for _ in range(10)]
+            purpose = f"Application code file. Header preview: {' '.join([h for h in head if h][:3])[:150]}"
+        except Exception:
+            purpose = "Application code file necessary for system logic."
+
+    elif ext in [".tmp", ".bak", ".log"] or path.name.lower() in ["desktop.ini", "thumbs.db"]:
+        category = "Temporary / Cache / System Junk"
+        importance = "LOW (Transient cache)"
+        safe_to_delete = "YES (Completely safe to delete to reclaim storage)"
+        purpose = "Temporary cache or runtime log generated by system or applications."
+
+    elif ext in [".zip", ".tar", ".gz", ".7z", ".rar"]:
+        category = "Compressed Archive"
+        importance = "NORMAL"
+        purpose = "Archive package containing compressed files or backups."
+
+    elif ext in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]:
+        category = "Image / Media"
+        importance = "NORMAL"
+        purpose = "Visual image asset or screenshot."
+
+    else:
+        category = f"{ext.upper() or 'Binary'} File"
+        purpose = f"General file residing in {path.parent.name}."
+
+    report = [
+        f"📄 **File Analysis for '{path.name}'**",
+        f"• **Location**: `{path}`",
+        f"• **Directory**: `{path.parent}` ({'Desktop' if 'Desktop' in str(path) else 'System/Project'})",
+        f"• **Category**: {category}",
+        f"• **Size**: {size_str} ({stat.st_size:,} bytes)",
+        f"• **Last Modified**: {mod_time}",
+        f"• **What this file does / Purpose**: {purpose}",
+        f"• **Importance Level**: {importance}",
+        f"• **Safe to Delete**: {safe_to_delete}",
+    ]
+    return "\n".join(report)
+
+
+@tool
+def scan_and_categorize_files(directory_path: str = "Desktop", max_files: int = 40) -> str:
+    """
+    Scans a folder (e.g. Desktop, Documents, Downloads, or DeskPilot workspace)
+    and provides an intelligent breakdown: what files exist, where they are,
+    what category they belong to, what their purpose is, and which ones are safe to clean up.
+
+    Args:
+        directory_path: Directory to inspect (default 'Desktop')
+        max_files: Maximum number of files to inspect (default 40)
+
+    Returns:
+        Structured categorization of files with plain language purpose explanations and storage totals.
+    """
+    target_dir = _resolve_path(directory_path, prefer_desktop=True)
+    if not target_dir.exists() or not target_dir.is_dir():
+        return f"Error: Directory '{directory_path}' not found (resolved: '{target_dir}')"
+
+    entries = []
+    try:
+        for item in target_dir.iterdir():
+            if item.name.startswith(".") or item.name.lower() in ["desktop.ini"]:
+                continue
+            entries.append(item)
+    except Exception as e:
+        return f"Error reading directory '{target_dir}': {str(e)}"
+
+    if not entries:
+        return f"The directory '{target_dir}' is currently empty."
+
+    entries.sort(key=lambda x: x.stat().st_mtime if x.exists() else 0, reverse=True)
+    inspected = entries[:max_files]
+
+    categories = {
+        "📚 Study & Office Documents (.docx, .pdf, .txt, .md)": [],
+        "📊 Spreadsheets & Data (.xlsx, .csv, .json)": [],
+        "💻 Code & Scripts (.py, .js, .html, .css)": [],
+        "🖼️ Media & Images (.png, .jpg, .svg, .mp4)": [],
+        "📦 Archives & Setups (.zip, .7z, .exe, .msi)": [],
+        "🗑️ Temporary & Cache (.tmp, .bak, .log)": [],
+        "📁 Subfolders": [],
+        "📄 Other Files": [],
+    }
+
+    total_bytes = 0
+    for item in inspected:
+        try:
+            is_dir = item.is_dir()
+            size = sum(f.stat().st_size for f in item.rglob('*') if f.is_file()) if is_dir else item.stat().st_size
+            total_bytes += size
+            size_str = _format_size(size)
+            ext = item.suffix.lower()
+
+            if is_dir:
+                categories["📁 Subfolders"].append((item.name, size_str, "Directory / Workspace folder"))
+            elif ext in [".docx", ".pdf", ".txt", ".md"]:
+                desc = "Word study/report document" if ext == ".docx" else ("PDF document" if ext == ".pdf" else "Text document")
+                categories["📚 Study & Office Documents (.docx, .pdf, .txt, .md)"].append((item.name, size_str, desc))
+            elif ext in [".xlsx", ".xls", ".csv", ".json"]:
+                categories["📊 Spreadsheets & Data (.xlsx, .csv, .json)"].append((item.name, size_str, "Data table / workbook"))
+            elif ext in [".py", ".js", ".html", ".css"]:
+                categories["💻 Code & Scripts (.py, .js, .html, .css)"].append((item.name, size_str, "Source code / logic file"))
+            elif ext in [".png", ".jpg", ".jpeg", ".svg", ".webp", ".mp4"]:
+                categories["🖼️ Media & Images (.png, .jpg, .svg, .mp4)"].append((item.name, size_str, "Visual media"))
+            elif ext in [".zip", ".7z", ".rar", ".exe", ".msi"]:
+                categories["📦 Archives & Setups (.zip, .7z, .exe, .msi)"].append((item.name, size_str, "Installer / archive"))
+            elif ext in [".tmp", ".bak", ".log"]:
+                categories["🗑️ Temporary & Cache (.tmp, .bak, .log)"].append((item.name, size_str, "Safe to clean junk file"))
+            else:
+                categories["📄 Other Files"].append((item.name, size_str, f"{ext or 'binary'} file"))
+        except Exception:
+            pass
+
+    lines = [
+        f"📂 **Workspace File Inventory: {target_dir}**",
+        f"Showing {len(inspected)} item(s) • Total Size: ~{_format_size(total_bytes)}\n"
+    ]
+
+    for cat_name, items in categories.items():
+        if items:
+            lines.append(f"**{cat_name}** ({len(items)}):")
+            for name, sz, role in items:
+                lines.append(f"  • `{name}` ({sz}) — {role}")
+            lines.append("")
+
+    lines.append("Tip: Ask me 'explain file <name>' for an in-depth breakdown of any specific file, or ask me to delete/organize any group.")
+    return "\n".join(lines)
+

@@ -126,11 +126,15 @@ function initApp() {
             await loadAgents();
             await loadRecentActivity();
             await loadSavePreferences();
+            await loadStorageHeaderPill();
             refreshLucide();
+            // Periodic storage & diagnostics refresh
+            setInterval(loadStorageHeaderPill, 45000);
         } catch (err) {
             console.error("Dashboard initialization error:", err);
         }
     }
+
 
     function refreshLucide() {
         if (window.lucide) {
@@ -2107,7 +2111,35 @@ function initApp() {
                 }
             }
         });
+
+        // ── System Alerts & Top Window Notifications ─────────────────────────
+        window.DeskPilot.on('deskpilot:system_alert', (data) => {
+            if (!data) return;
+            const type = data.type || 'info';
+            const title = data.title || 'System Alert';
+            const msg = data.message || '';
+            let actionText = null;
+            let actionHandler = null;
+
+            if (data.action_type === 'storage_alert') {
+                actionText = 'View Storage';
+                actionHandler = () => openStorageModal();
+            } else if (data.action_type === 'delete_files' || data.action_type === 'delete_file') {
+                actionText = 'Desktop';
+                actionHandler = () => {
+                    switchView('chat');
+                };
+            }
+
+            showTopAlert(title, msg, type, actionText, actionHandler, 10000);
+        });
+
+        window.DeskPilot.on('deskpilot:storage_update', (data) => {
+            if (!data) return;
+            loadStorageHeaderPill();
+        });
     }
+
 
     // ── 9. Setup Event Listeners ──────────────────────────────────────────────
 
@@ -2150,9 +2182,234 @@ function initApp() {
                 }
             });
         });
+        // Storage modal close & dismiss alert
+        document.getElementById('btn-close-storage-modal')?.addEventListener('click', closeStorageModal);
+        document.getElementById('btn-dismiss-top-alert')?.addEventListener('click', dismissTopAlert);
     }
 
-    // ── 7.8 Save Location Preferences Controller ──────────────────────────────
+    // ── 7.7 Top Window Alert Banner Controller ───────────────────────────────
+    let topAlertTimeout = null;
+
+    function showTopAlert(title, message, type = 'info', actionText = null, actionHandler = null, autoDismissMs = 8000) {
+        const banner = document.getElementById('top-alert-banner');
+        const titleEl = document.getElementById('top-alert-title');
+        const msgEl = document.getElementById('top-alert-msg');
+        const iconEl = document.getElementById('top-alert-icon');
+        const actionBtn = document.getElementById('btn-top-alert-action');
+
+        if (!banner || !titleEl || !msgEl) return;
+
+        titleEl.textContent = title || 'Alert';
+        msgEl.textContent = message || '';
+
+        banner.classList.remove('top-alert-warning', 'top-alert-error', 'top-alert-success');
+
+        if (type === 'warning' || type === 'warn') {
+            banner.classList.add('top-alert-warning');
+            if (iconEl) {
+                iconEl.className = 'w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0';
+                iconEl.innerHTML = '<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>';
+            }
+        } else if (type === 'error' || type === 'danger') {
+            banner.classList.add('top-alert-error');
+            if (iconEl) {
+                iconEl.className = 'w-6 h-6 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 flex-shrink-0';
+                iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>';
+            }
+        } else if (type === 'success') {
+            banner.classList.add('top-alert-success');
+            if (iconEl) {
+                iconEl.className = 'w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0';
+                iconEl.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i>';
+            }
+        } else {
+            if (iconEl) {
+                iconEl.className = 'w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0';
+                iconEl.innerHTML = '<i data-lucide="bell" class="w-3.5 h-3.5"></i>';
+            }
+        }
+
+        if (actionText && typeof actionHandler === 'function' && actionBtn) {
+            actionBtn.textContent = actionText;
+            actionBtn.classList.remove('hidden');
+            actionBtn.onclick = () => {
+                actionHandler();
+                dismissTopAlert();
+            };
+        } else if (actionBtn) {
+            actionBtn.classList.add('hidden');
+        }
+
+        banner.classList.remove('hidden');
+        banner.classList.add('banner-visible');
+        refreshLucide();
+
+        if (topAlertTimeout) clearTimeout(topAlertTimeout);
+        if (autoDismissMs > 0) {
+            topAlertTimeout = setTimeout(() => {
+                dismissTopAlert();
+            }, autoDismissMs);
+        }
+    }
+
+    function dismissTopAlert() {
+        const banner = document.getElementById('top-alert-banner');
+        if (banner) {
+            banner.classList.remove('banner-visible');
+            banner.classList.add('hidden');
+        }
+        if (topAlertTimeout) clearTimeout(topAlertTimeout);
+    }
+
+    // ── 7.8 System Storage & Diagnostics Controller ──────────────────────────
+    let currentStorageData = null;
+
+    async function loadStorageHeaderPill() {
+        try {
+            const data = await window.DeskPilot.getStorageSummary();
+            if (!data || !data.success) return;
+            currentStorageData = data;
+
+            const valEl = document.getElementById('header-storage-val');
+            const badgeEl = document.getElementById('header-storage-badge');
+            const pillBtn = document.getElementById('header-storage-pill');
+
+            if (valEl) {
+                valEl.textContent = `${data.c_free_gb || 0} GB`;
+            }
+            if (badgeEl) {
+                const freePct = data.c_free_pct || 0;
+                badgeEl.textContent = `${freePct}% Free`;
+                if (data.is_low) {
+                    badgeEl.className = "text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                    if (pillBtn) pillBtn.classList.add('storage-pill-low');
+                } else if (freePct < 25) {
+                    badgeEl.className = "text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+                    if (pillBtn) pillBtn.classList.remove('storage-pill-low');
+                } else {
+                    badgeEl.className = "text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                    if (pillBtn) pillBtn.classList.remove('storage-pill-low');
+                }
+            }
+        } catch (e) {
+            console.warn("Could not load storage summary:", e);
+        }
+    }
+
+    async function openStorageModal() {
+        const modal = document.getElementById('storage-modal');
+        if (!modal) return;
+        modal.classList.remove('modal-hidden');
+
+        try {
+            const [storage, diag] = await Promise.all([
+                window.DeskPilot.getStorageSummary(),
+                window.DeskPilot.getSystemDiagnostics()
+            ]);
+
+            if (storage && storage.success) {
+                currentStorageData = storage;
+                const cUsed = document.getElementById('storage-modal-c-used');
+                const cPct = document.getElementById('storage-modal-c-pct');
+                const cFree = document.getElementById('storage-modal-c-free');
+                const cBar = document.getElementById('storage-modal-c-bar');
+                const cBadge = document.getElementById('storage-modal-c-badge');
+
+                if (cUsed) cUsed.textContent = `${storage.c_used_gb} GB`;
+                if (cPct) cPct.textContent = `${storage.c_used_pct}%`;
+                if (cFree) cFree.textContent = `${storage.c_free_gb} GB`;
+                if (cBar) {
+                    cBar.style.width = `${Math.min(100, storage.c_used_pct)}%`;
+                    if (storage.is_low) {
+                        cBar.className = "bg-gradient-to-r from-amber-500 to-rose-500 h-full rounded-full transition-all duration-500";
+                    } else {
+                        cBar.className = "bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500";
+                    }
+                }
+                if (cBadge) {
+                    if (storage.is_low) {
+                        cBadge.textContent = "Low Space Warning";
+                        cBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                    } else {
+                        cBadge.textContent = "Healthy";
+                        cBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                    }
+                }
+
+                const tempEl = document.getElementById('storage-modal-temp-size');
+                if (tempEl) tempEl.textContent = storage.temp_size_str || '0 MB';
+
+                const otherDrives = document.getElementById('storage-modal-other-drives');
+                if (otherDrives) {
+                    const others = (storage.drives || []).filter(d => !d.mountpoint.toUpperCase().includes('C:'));
+                    if (others.length > 0) {
+                        otherDrives.innerHTML = others.map(d => `
+                            <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
+                                <div class="flex justify-between font-bold text-slate-300">
+                                    <span>Drive ${d.mountpoint}</span>
+                                    <span class="font-mono text-indigo-400">${d.percent}%</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">${d.free_gb} GB free of ${d.total_gb} GB</div>
+                            </div>
+                        `).join('');
+                    } else {
+                        otherDrives.innerHTML = '';
+                    }
+                }
+            }
+
+            if (diag && diag.success) {
+                const cpuVal = document.getElementById('storage-modal-cpu-val');
+                const cpuCores = document.getElementById('storage-modal-cpu-cores');
+                const ramVal = document.getElementById('storage-modal-ram-val');
+                const ramDetails = document.getElementById('storage-modal-ram-details');
+                const batteryVal = document.getElementById('storage-modal-battery-val');
+                const powerSrc = document.getElementById('storage-modal-power-src');
+                const uptimeVal = document.getElementById('storage-modal-uptime-val');
+                const osName = document.getElementById('storage-modal-os-name');
+
+                if (cpuVal) cpuVal.textContent = `${diag.cpu_pct}%`;
+                if (cpuCores) cpuCores.textContent = `${diag.cpu_cores} Logical Cores`;
+                if (ramVal) ramVal.textContent = `${diag.ram_pct}%`;
+                if (ramDetails) ramDetails.textContent = `${diag.ram_used_gb} / ${diag.ram_total_gb} GB`;
+                if (batteryVal) batteryVal.textContent = diag.battery_pct !== null ? `${diag.battery_pct}%` : 'AC Wall Power';
+                if (powerSrc) powerSrc.textContent = diag.is_charging ? 'Desktop / Continuous AC' : 'On Battery';
+                if (uptimeVal) uptimeVal.textContent = diag.uptime_str || '--';
+                if (osName) osName.textContent = diag.os || 'Windows';
+            }
+        } catch (e) {
+            console.error("Failed to populate storage modal:", e);
+        }
+        refreshLucide();
+    }
+
+    function closeStorageModal() {
+        const modal = document.getElementById('storage-modal');
+        if (modal) modal.classList.add('modal-hidden');
+    }
+
+    function triggerCleanTempFromModal() {
+        closeStorageModal();
+        switchView('chat');
+        sendChatTurnDirect('Clean my temporary files now');
+    }
+
+    function askAgentDesktopScan() {
+        closeStorageModal();
+        switchView('chat');
+        sendChatTurnDirect('Scan desktop files and explain what each file does');
+    }
+
+    function sendChatTurnDirect(promptText) {
+        const ta = document.getElementById('chat-input-textarea');
+        if (ta) {
+            ta.value = promptText;
+            sendChatMessage();
+        }
+    }
+
+    // ── 7.9 Save Location Preferences Controller ──────────────────────────────
+
     let currentSavePreferences = { save_location: 'Desktop', always_save: true, custom_path: '' };
 
     async function loadSavePreferences() {
@@ -2239,8 +2496,16 @@ function initApp() {
         openSaveLocationModal,
         closeSaveLocationModal,
         saveLocationPreferencesSubmit,
+        openStorageModal,
+        closeStorageModal,
+        triggerCleanTempFromModal,
+        askAgentDesktopScan,
+        dismissTopAlert,
+        showTopAlert,
+        loadStorageHeaderPill,
         switchView,
         refreshAuditHistory,
+
         selectChatSession: (id) => selectChatSession(id),
         deleteChatSession: (id) => deleteCurrentChat(id),
         openAgentChat: (agentId) => openAgentChat(agentId),

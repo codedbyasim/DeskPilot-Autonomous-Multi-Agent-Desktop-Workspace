@@ -228,6 +228,17 @@ def get_tools_metadata():
     return jsonify(bridge.get_available_tools_metadata())
 
 
+@app.route("/api/system/storage", methods=["GET"])
+def get_system_storage_route():
+    return jsonify(bridge.get_storage_summary())
+
+
+@app.route("/api/system/diagnostics", methods=["GET"])
+def get_system_diagnostics_route():
+    return jsonify(bridge.get_system_diagnostics_summary())
+
+
+
 # ── Chat Session Endpoints ────────────────────────────────────────────────────
 
 @app.route("/api/chat/sessions", methods=["GET"])

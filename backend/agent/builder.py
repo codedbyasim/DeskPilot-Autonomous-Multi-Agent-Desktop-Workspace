@@ -172,13 +172,67 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "category": "Files",
         "tier": "GREEN",
     },
+    "delete_files": {
+        "title": "Batch Delete Files (Recycle Bin)",
+        "description": "Safely delete multiple files to Windows Recycle Bin in a single approval step",
+        "category": "Files",
+        "tier": "RED",
+    },
+    "explain_file_purpose": {
+        "title": "Explain File Purpose",
+        "description": "Inspect and explain where a file is, what it does, and whether it is safe to delete",
+        "category": "Files",
+        "tier": "GREEN",
+    },
+    "scan_and_categorize_files": {
+        "title": "Scan & Categorize Files",
+        "description": "Inspect and categorize loose files in Desktop or folders with plain-language explanations",
+        "category": "Files",
+        "tier": "GREEN",
+    },
+    "open_folder": {
+        "title": "Open Folder In Explorer",
+        "description": "Open containing folder in Windows File Explorer",
+        "category": "Files",
+        "tier": "GREEN",
+    },
+    "get_file_info": {
+        "title": "Get File Info",
+        "description": "Inspect file size, extension, and modification timestamps",
+        "category": "Files",
+        "tier": "GREEN",
+    },
 
-    # System
+    # System & Hardware
     "winget_install": {
         "title": "Install Software (Allow-List Only)",
         "description": "Install pre-approved Windows packages via winget (Requires explicit Red-tier approval)",
         "category": "System",
         "tier": "RED",
+    },
+    "get_storage_status": {
+        "title": "System Storage Monitor",
+        "description": "Inspect PC drives, free space, and temp cache clutter with low storage alerts",
+        "category": "System",
+        "tier": "GREEN",
+    },
+    "clean_temporary_files": {
+        "title": "Clean Temporary Files",
+        "description": "Clean temporary cache files from user %TEMP% to reclaim gigabytes of storage",
+        "category": "System",
+        "tier": "YELLOW",
+    },
+    "get_system_info": {
+        "title": "System Diagnostics & Hardware Specs",
+        "description": "Inspect CPU, RAM, Battery, OS, Uptime, and network status",
+        "category": "System",
+        "tier": "GREEN",
+    },
+    "get_running_processes": {
+        "title": "Active Processes Monitor",
+        "description": "Identify top memory or CPU-consuming applications and background tasks",
+        "category": "System",
+        "tier": "GREEN",
     },
 }
 

@@ -189,8 +189,13 @@ class DeskPilotBridgeClient {
                     return await (await fetch(`${base}/winget/allowlist`)).json();
                 case 'get_available_tools_metadata':
                     return await (await fetch(`${base}/tools_metadata`)).json();
+                case 'get_storage_summary':
+                    return await (await fetch(`${base}/system/storage`)).json();
+                case 'get_system_diagnostics':
+                    return await (await fetch(`${base}/system/diagnostics`)).json();
                 case 'get_chat_sessions':
                     return await (await fetch(`${base}/chat/sessions`)).json();
+
                 case 'get_chat_session':
                     return await (await fetch(`${base}/chat/session/${encodeURIComponent(args[0])}`)).json();
                 case 'create_chat_session':
@@ -406,7 +411,16 @@ class DeskPilotBridgeClient {
         return await this._call('set_save_preferences', saveLocation, alwaysSave, customPath);
     }
 
+    async getStorageSummary() {
+        return await this._call('get_storage_summary') || {};
+    }
+
+    async getSystemDiagnostics() {
+        return await this._call('get_system_diagnostics') || {};
+    }
+
     // ── Event Bus ─────────────────────────────────────────────────────────────
+
 
     on(eventName, callback) {
         window.addEventListener(eventName, (e) => {

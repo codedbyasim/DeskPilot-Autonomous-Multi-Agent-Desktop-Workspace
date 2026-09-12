@@ -22,12 +22,14 @@ from backend.tools.excel_tools import (
     verify_excel_workbook, read_excel_file
 )
 from backend.tools.file_tools import (
-    list_files, verify_file_exists, move_file, rename_file, delete_file,
+    list_files, verify_file_exists, move_file, rename_file, delete_file, delete_files,
     create_folder, open_file, open_folder, get_file_info, take_screenshot,
-    get_desktop_path, get_output_directory, read_file, write_file, organize_files
+    get_desktop_path, get_output_directory, read_file, write_file, organize_files,
+    explain_file_purpose, scan_and_categorize_files
 )
 from backend.tools.system_tools import (
-    winget_install, get_winget_allowlist, check_software_installed, launch_application
+    winget_install, get_winget_allowlist, check_software_installed, launch_application,
+    get_storage_status, clean_temporary_files, get_system_info, get_running_processes
 )
 
 logger = get_logger("tools.registry")
@@ -62,6 +64,10 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "move_file": move_file,
     "rename_file": rename_file,
     "delete_file": delete_file,
+    "delete_files": delete_files,
+    "batch_delete": delete_files,  # Alias
+    "safe_delete": delete_file,  # Alias
+    "safe_delete_files": delete_files,  # Alias
     "create_folder": create_folder,
     "organize_files": organize_files,
     "organize_desktop": organize_files,  # Alias
@@ -71,6 +77,12 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "reveal_in_explorer": open_folder,  # Alias
     "get_file_info": get_file_info,
     "file_info": get_file_info,  # Alias
+    "explain_file_purpose": explain_file_purpose,
+    "explain_file": explain_file_purpose,  # Alias
+    "file_purpose": explain_file_purpose,  # Alias
+    "scan_and_categorize_files": scan_and_categorize_files,
+    "categorize_files": scan_and_categorize_files,  # Alias
+    "scan_files": scan_and_categorize_files,  # Alias
     "take_screenshot": take_screenshot,
     "get_desktop_path": get_desktop_path,
     "get_output_directory": get_output_directory,
@@ -92,6 +104,20 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "open_application": launch_application,  # Alias
     "open_app": launch_application,  # Alias
     "launch_app": launch_application,  # Alias
+
+    # ── System Storage, Diagnostics & Resource Tools ──────────────────────────
+    "get_storage_status": get_storage_status,
+    "check_storage": get_storage_status,  # Alias
+    "storage_status": get_storage_status,  # Alias
+    "clean_temporary_files": clean_temporary_files,
+    "clean_temp": clean_temporary_files,  # Alias
+    "clean_temp_files": clean_temporary_files,  # Alias
+    "get_system_info": get_system_info,
+    "system_info": get_system_info,  # Alias
+    "system_diagnostics": get_system_info,  # Alias
+    "get_running_processes": get_running_processes,
+    "running_processes": get_running_processes,  # Alias
+    "list_processes": get_running_processes,  # Alias
 }
 
 

@@ -510,6 +510,121 @@ class DeskPilotBridge:
             "status": "ready",
         }
 
+    def get_storage_summary(self) -> Dict[str, Any]:
+        """Returns structured drive and temp storage metrics for the UI header pill and quick modal."""
+        import os
+        from pathlib import Path
+        try:
+            import psutil
+            drives = []
+            c_free_gb = 0
+            c_total_gb = 0
+            c_used_gb = 0
+            c_used_pct = 0
+            c_free_pct = 0
+            for part in psutil.disk_partitions(all=False):
+                try:
+                    usage = psutil.disk_usage(part.mountpoint)
+                    tot = round(usage.total / (1024 ** 3), 1)
+                    used = round(usage.used / (1024 ** 3), 1)
+                    free = round(usage.free / (1024 ** 3), 1)
+                    pct = round(usage.percent, 1)
+                    drives.append({
+                        "mountpoint": part.mountpoint,
+                        "total_gb": tot,
+                        "used_gb": used,
+                        "free_gb": free,
+                        "percent": pct,
+                    })
+                    if "C:" in part.mountpoint.upper():
+                        c_free_gb = free
+                        c_total_gb = tot
+                        c_used_gb = used
+                        c_used_pct = pct
+                        c_free_pct = round(100 - pct, 1)
+                except Exception:
+                    continue
+
+            temp_dir = Path(os.environ.get("TEMP", os.environ.get("TMP", "C:/Windows/Temp")))
+            temp_size = 0
+            if temp_dir.exists():
+                try:
+                    for entry in temp_dir.iterdir():
+                        try:
+                            temp_size += entry.stat().st_size if entry.is_file() else 0
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            def _fmt(b):
+                n = float(b)
+                for u in ['B', 'KB', 'MB', 'GB']:
+                    if abs(n) < 1024.0:
+                        return f"{n:.1f} {u}"
+                    n /= 1024.0
+                return f"{n:.1f} TB"
+
+            return {
+                "success": True,
+                "c_free_gb": c_free_gb,
+                "c_total_gb": c_total_gb,
+                "c_used_gb": c_used_gb,
+                "c_used_pct": c_used_pct,
+                "c_free_pct": c_free_pct,
+                "is_low": c_free_pct < 15,
+                "temp_size_str": _fmt(temp_size),
+                "drives": drives,
+            }
+        except Exception as e:
+            logger.error(f"Error in get_storage_summary: {e}")
+            return {"success": False, "error": str(e), "c_free_gb": 0, "c_free_pct": 0, "is_low": False, "drives": []}
+
+    def get_system_diagnostics_summary(self) -> Dict[str, Any]:
+        """Returns real-time CPU, RAM, Battery, OS metrics for frontend quick modal."""
+        import platform
+        try:
+            import psutil
+            cpu_pct = round(psutil.cpu_percent(interval=0.1), 1)
+            cpu_cores = psutil.cpu_count(logical=True) or 1
+            vm = psutil.virtual_memory()
+            ram_total = round(vm.total / (1024 ** 3), 1)
+            ram_used = round(vm.used / (1024 ** 3), 1)
+            ram_free = round(vm.available / (1024 ** 3), 1)
+            ram_pct = round(vm.percent, 1)
+
+            battery = psutil.sensors_battery()
+            battery_pct = battery.percent if battery else None
+            is_charging = battery.power_plugged if battery else True
+
+            boot_time = datetime.fromtimestamp(psutil.boot_time())
+            uptime = datetime.now() - boot_time
+            days = uptime.days
+            hours, remainder = divmod(uptime.seconds, 3600)
+            mins, _ = divmod(remainder, 60)
+            uptime_str = f"{days}d {hours}h {mins}m" if days > 0 else f"{hours}h {mins}m"
+
+            uname = platform.uname()
+            os_name = f"{uname.system} {uname.release}"
+
+            return {
+                "success": True,
+                "cpu_pct": cpu_pct,
+                "cpu_cores": cpu_cores,
+                "ram_total_gb": ram_total,
+                "ram_used_gb": ram_used,
+                "ram_free_gb": ram_free,
+                "ram_pct": ram_pct,
+                "battery_pct": battery_pct,
+                "is_charging": is_charging,
+                "uptime_str": uptime_str,
+                "os": os_name,
+            }
+        except Exception as e:
+            logger.error(f"Error in get_system_diagnostics_summary: {e}")
+            return {"success": False, "error": str(e)}
+
+
     # ── 6.5. Save Location Preferences ────────────────────────────────────────
 
     def get_save_preferences(self) -> Dict[str, Any]:

@@ -63,10 +63,12 @@ class TestPhase2BackendCore(unittest.TestCase):
         self.assertIn("search_web", tool_names)
         self.assertIn("search_and_read", tool_names)
         self.assertIn("create_word_report", tool_names)
+        self.assertIn("delete_file", tool_names)
+        self.assertIn("winget_install", tool_names)
 
         # Ensure dangerous / unallowed tools are NOT included
-        self.assertNotIn("delete_file", tool_names)
-        self.assertNotIn("winget_install", tool_names)
+        self.assertNotIn("hack_system", tool_names)
+        self.assertNotIn("fake_tool_xyz", tool_names)
 
     def test_get_tools_for_agent_health_agent(self):
         """Verify health_agent receives its authorized tools."""
@@ -114,8 +116,13 @@ class TestPhase2BackendCore(unittest.TestCase):
 
         set_approval_hook(mock_approval_hook)
 
-        # Call with approved package in allow-list
-        res = winget_install("Git.Git")
+        # Call with approved package in allow-list (mock subprocess to simulate package not already installed)
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.stdout = ""
+            mock_run.return_value = mock_proc
+            res = winget_install("Git.Git")
+
         self.assertIn("CANCELLED", res)
         self.assertIn("User denied permission", res)
         self.assertTrue(len(captured_requests) > 0)

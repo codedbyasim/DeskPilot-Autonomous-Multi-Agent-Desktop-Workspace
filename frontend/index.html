@@ -121,6 +121,11 @@
                     <i data-lucide="folder-output" class="w-3.5 h-3.5 text-indigo-400"></i>
                     <span>Save to: <span id="header-save-loc-label" class="font-bold text-white">Desktop</span></span>
                 </button>
+                <button id="header-storage-pill" onclick="window.DeskPilotApp.openStorageModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80 text-xs font-medium transition-all cursor-pointer" title="System Storage & Health Diagnostics">
+                    <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>C: <strong id="header-storage-val" class="text-white">-- GB</strong></span>
+                    <span id="header-storage-badge" class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Storage</span>
+                </button>
                 <div id="system-status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span>System Ready</span>
@@ -140,6 +145,27 @@
                 </div>
             </div>
         </header>
+
+        <!-- Top Live Alert Banner (Window-wide notification of system/storage/agent events) -->
+        <div id="top-alert-banner" class="hidden px-8 py-2.5 bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border-b border-indigo-500/30 text-xs flex items-center justify-between transition-all duration-300 shadow-md">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <div id="top-alert-icon" class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                    <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                </div>
+                <div class="truncate">
+                    <span id="top-alert-title" class="font-bold text-white mr-2">System Notification</span>
+                    <span id="top-alert-msg" class="text-slate-300">DeskPilot workspace ready.</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+                <button id="btn-top-alert-action" class="hidden px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-[11px] font-semibold transition-all">
+                    Action
+                </button>
+                <button id="btn-dismiss-top-alert" onclick="window.DeskPilotApp.dismissTopAlert()" class="p-1 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
 
         <!-- Scrollable Main Content -->
         <main class="flex-1 overflow-y-auto p-8 bg-[#090D16]">
@@ -620,8 +646,23 @@
 
                     <!-- Deliverable Action Cards Container (Initially Hidden) -->
                     <div id="task-deliverable-card" class="hidden space-y-2 mt-2">
-                        <!-- Populated dynamically via app.js addDeliverable() with rich multi-file cards -->
+                        <div class="p-3 rounded-xl deliverable-card flex items-center justify-between">
+                            <div class="flex items-center gap-2.5 overflow-hidden">
+                                <div id="deliverable-icon-badge" class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                                </div>
+                                <div class="truncate">
+                                    <span class="text-[10px] text-indigo-300 font-semibold block">Generated Deliverable</span>
+                                    <span id="deliverable-filename" class="text-xs text-white font-medium truncate block">Report.docx</span>
+                                </div>
+                            </div>
+                            <button id="btn-open-deliverable" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 flex-shrink-0 shadow-sm">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open File
+                            </button>
+                        </div>
+                        <div id="deliverables-multi-container" class="space-y-2"></div>
                     </div>
+
                 </div>
             </div>
 
@@ -917,7 +958,107 @@
         </div>
     </div>
 
+    <!-- ── System Storage & Health Diagnostics Modal ──────────────────────── -->
+    <div id="storage-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-lg bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-6 relative max-h-[90vh] flex flex-col">
+            <button id="btn-close-storage-modal" onclick="window.DeskPilotApp.closeStorageModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="flex items-start gap-3.5 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                    <i data-lucide="hard-drive" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-white text-base">System Storage & Diagnostics</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Real-time drive capacity, temporary files, and hardware performance metrics.</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 overflow-y-auto pr-1 flex-1 text-xs">
+                <!-- Primary Drive Card -->
+                <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="disc" class="w-4 h-4 text-indigo-400"></i> Primary Drive (C:)
+                        </span>
+                        <span id="storage-modal-c-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Healthy</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden mb-2">
+                        <div id="storage-modal-c-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: 50%;"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] text-slate-400">
+                        <span>Used: <strong id="storage-modal-c-used" class="text-white">-- GB</strong> (<span id="storage-modal-c-pct">--%</span>)</span>
+                        <span>Free: <strong id="storage-modal-c-free" class="text-emerald-400">-- GB</strong></span>
+                    </div>
+                </div>
+
+                <!-- Secondary Drives Grid -->
+                <div id="storage-modal-other-drives" class="grid grid-cols-2 gap-2">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+
+                <!-- Temp Files & Junk Cleaner Card -->
+                <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="trash-2" class="w-4 h-4 text-amber-400"></i> Temporary Junk Cache (%TEMP%)
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1">
+                            Occupying <strong id="storage-modal-temp-size" class="text-white font-mono">-- MB</strong> of disk space
+                        </div>
+                    </div>
+                    <button onclick="window.DeskPilotApp.triggerCleanTempFromModal()" class="px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs transition-all flex items-center gap-1">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Clean Temp
+                    </button>
+                </div>
+
+                <!-- Hardware Diagnostics Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-slate-400 font-medium">CPU Usage</span>
+                            <span id="storage-modal-cpu-val" class="font-bold text-indigo-300 font-mono">--%</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 font-mono" id="storage-modal-cpu-cores">-- Cores</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-slate-400 font-medium">RAM Memory</span>
+                            <span id="storage-modal-ram-val" class="font-bold text-indigo-300 font-mono">--%</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 font-mono" id="storage-modal-ram-details">-- / -- GB</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-slate-400 font-medium">Power / Battery</span>
+                            <span id="storage-modal-battery-val" class="font-bold text-emerald-400 font-mono">100%</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 truncate" id="storage-modal-power-src">Desktop / AC</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-slate-400 font-medium">System Uptime</span>
+                            <span id="storage-modal-uptime-val" class="font-bold text-indigo-300 font-mono">--</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 truncate" id="storage-modal-os-name">Windows</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                <button onclick="window.DeskPilotApp.askAgentDesktopScan()" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 font-medium">
+                    <i data-lucide="scan" class="w-3.5 h-3.5"></i> Scan Desktop Files
+                </button>
+                <button onclick="window.DeskPilotApp.closeStorageModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
+
     <script src="js/bridge.js"></script>
     <script src="js/app.js"></script>
     <script>

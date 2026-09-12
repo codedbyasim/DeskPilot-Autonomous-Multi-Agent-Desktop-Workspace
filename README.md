@@ -1,4 +1,4 @@
-# DeskPilot — Autonomous Multi-Agent Desktop Workspace
+# DeskPilot — Multi-Agent Windows Desktop Assistant
 
 [![AWS Hackathon](https://img.shields.io/badge/AWS_Hackathon-Agents_for_Humans-FF9900?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 [![Amazon Bedrock](https://img.shields.io/badge/Model-Amazon_Bedrock_Nova_Pro-blue?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/bedrock/)
@@ -52,7 +52,7 @@ Built specifically for the **AWS "Agents for Humans" Hackathon (Professional Age
 
 ![Excel Deliverable Generation](assets/screenshots/excel_deliverable.png)
 
-### 4. 🛡️ 3-Tier Human-in-the-Loop Trust Engine
+### 4. 🛡️ 3-Tier Human-in-the-Loop Trust Engine (Trust & Safety Model)
 Enforces strict autonomy boundaries across all tools:
 - 🟢 **Green (Autonomous)**: Read-only sweeps, research, document creation.
 - 🟡 **Yellow (Confirmation Required)**: Moving, renaming, or batch organizing files. Features an **"Approve All"** button for uninterrupted batch workflows.
@@ -149,7 +149,7 @@ docker compose up -d
 # Access web workspace at http://localhost:5000
 ```
 
-### Option 4: Standalone Windows Executable (.exe)
+### Option 4: Standalone Windows Executable (.exe) & Packaging & Building the Installer
 ```bat
 scripts\build.bat
 ```
