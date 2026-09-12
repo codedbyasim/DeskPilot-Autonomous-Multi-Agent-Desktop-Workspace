@@ -2,6 +2,63 @@
  * Complementing Tailwind CSS for smooth animations, custom scrollbars, and card micro-interactions.
  */
 
+/* ── Global Typography & High Readability Scaling ──────────────────────── */
+html {
+    font-size: 17px; /* Scaled up base size for high readability across all displays */
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.95rem; /* ~16.2px body text */
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+}
+
+/* Universal font size increases for readability */
+.text-\[9px\], .text-\[10px\] {
+    font-size: 0.78rem !important; /* ~13.3px instead of 9-10px */
+    line-height: 1.4 !important;
+}
+
+.text-\[11px\] {
+    font-size: 0.82rem !important; /* ~14px instead of 11px */
+    line-height: 1.45 !important;
+}
+
+.text-xs {
+    font-size: 0.88rem !important; /* ~15px instead of 12px */
+    line-height: 1.55 !important;
+}
+
+.text-sm {
+    font-size: 0.98rem !important; /* ~16.7px instead of 14px */
+    line-height: 1.6 !important;
+}
+
+.text-base {
+    font-size: 1.1rem !important; /* ~18.7px instead of 16px */
+    line-height: 1.6 !important;
+}
+
+.text-lg {
+    font-size: 1.25rem !important;
+}
+
+.text-xl {
+    font-size: 1.45rem !important;
+}
+
+.text-2xl {
+    font-size: 1.75rem !important;
+}
+
+/* Form inputs & textareas typography */
+input, textarea, select {
+    font-size: 0.95rem !important;
+}
+
 /* ── Custom Dark Scrollbars ────────────────────────────────────────────── */
 ::-webkit-scrollbar {
     width: 6px;
@@ -227,6 +284,8 @@
     background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
     box-shadow: 0 4px 15px -2px rgba(79, 70, 229, 0.3);
     border-radius: 18px 18px 4px 18px;
+    font-size: 1rem;
+    line-height: 1.65;
 }
 
 .chat-bubble-assistant {
@@ -234,66 +293,110 @@
     border: 1px solid rgba(51, 65, 85, 0.7);
     border-radius: 18px 18px 18px 4px;
     box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
+    font-size: 1rem;
+    line-height: 1.68;
+}
+
+.chat-markdown {
+    font-size: 1rem;
+    line-height: 1.68;
+    color: #F1F5F9;
 }
 
 .chat-markdown p {
-    margin-bottom: 0.5rem;
-    line-height: 1.6;
+    margin-bottom: 0.65rem;
+    line-height: 1.68;
 }
 
 .chat-markdown p:last-child {
     margin-bottom: 0;
 }
 
-.chat-markdown ul, .chat-markdown ol {
-    margin-left: 1.25rem;
+.chat-markdown h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-top: 1.2rem;
+    margin-bottom: 0.6rem;
+    color: #FFFFFF;
+}
+
+.chat-markdown h2 {
+    font-size: 1.22rem;
+    font-weight: 700;
+    margin-top: 1rem;
     margin-bottom: 0.5rem;
+    color: #F8FAFC;
+}
+
+.chat-markdown h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 0.85rem;
+    margin-bottom: 0.4rem;
+    color: #E2E8F0;
+}
+
+.chat-markdown ul, .chat-markdown ol {
+    margin-left: 1.35rem;
+    margin-bottom: 0.65rem;
+    font-size: 0.98rem;
 }
 
 .chat-markdown li {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.35rem;
+    line-height: 1.6;
 }
 
 .chat-markdown code {
-    background: rgba(15, 23, 42, 0.8);
-    padding: 0.15rem 0.35rem;
-    border-radius: 4px;
-    font-size: 0.85em;
+    background: rgba(15, 23, 42, 0.85);
+    padding: 0.2rem 0.45rem;
+    border-radius: 5px;
+    font-size: 0.9em;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    border: 1px solid rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    color: #E0E7FF;
 }
 
 .chat-markdown pre {
     background: #020617;
-    border: 1px solid rgba(51, 65, 85, 0.7);
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
+    border: 1px solid rgba(51, 65, 85, 0.8);
+    border-radius: 12px;
+    padding: 0.85rem 1.15rem;
     overflow-x: auto;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-top: 0.65rem;
+    margin-bottom: 0.65rem;
 }
 
 .chat-markdown pre code {
     background: transparent;
     padding: 0;
     border: none;
+    font-size: 0.92rem;
+    line-height: 1.6;
 }
 
 .chat-markdown table {
     width: 100%;
     border-collapse: collapse;
-    margin: 0.75rem 0;
-    font-size: 0.85rem;
+    margin: 0.95rem 0;
+    font-size: 0.95rem; /* Larger, readable table data */
 }
 
 .chat-markdown th, .chat-markdown td {
-    border: 1px solid rgba(51, 65, 85, 0.7);
-    padding: 0.5rem 0.75rem;
+    border: 1px solid rgba(71, 85, 105, 0.75);
+    padding: 0.65rem 0.95rem;
     text-align: left;
+    line-height: 1.55;
 }
 
 .chat-markdown th {
-    background: rgba(30, 41, 59, 0.5);
+    background: rgba(30, 41, 59, 0.7);
+    color: #F1F5F9;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.chat-markdown td {
     color: #E2E8F0;
 }
 
@@ -383,8 +486,8 @@
     background: rgba(10, 15, 30, 0.9);
     border: 1px solid rgba(71, 85, 105, 0.6);
     border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.95rem;
     color: #F8FAFC;
     transition: all 0.2s ease;
 }
@@ -404,7 +507,7 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.55rem 0.85rem;
     border-radius: 0.5rem;
     background: rgba(10, 15, 30, 0.7);
     border: 1px solid rgba(51, 65, 85, 0.6);
@@ -421,6 +524,47 @@
     color: #A5B4FC;
     font-weight: 600;
 }
+
+/* ── Element Readability Adjustments ───────────────────────────────────── */
+.sidebar-link {
+    font-size: 0.95rem !important;
+}
+
+.agent-card h4 {
+    font-size: 1.05rem !important;
+}
+
+.agent-card p {
+    font-size: 0.9rem !important;
+    line-height: 1.55 !important;
+}
+
+#chat-input-textarea {
+    font-size: 1rem !important;
+    line-height: 1.6 !important;
+}
+
+.modal-container h3 {
+    font-size: 1.25rem !important;
+}
+
+.modal-container p {
+    font-size: 0.92rem !important;
+    line-height: 1.55 !important;
+}
+
+#top-alert-title {
+    font-size: 0.95rem !important;
+}
+
+#top-alert-msg {
+    font-size: 0.88rem !important;
+}
+
+#header-storage-pill {
+    font-size: 0.88rem !important;
+}
+
 
 
 
