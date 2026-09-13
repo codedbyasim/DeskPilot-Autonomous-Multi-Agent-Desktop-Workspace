@@ -46,9 +46,8 @@ RUN mkdir -p /app/output /app/chats /app/logs
 # Expose Web Interface & API Port
 EXPOSE 5000
 
-# Container Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/api/status || exit 1
+    CMD curl -f http://localhost:${PORT:-5000}/api/status || exit 1
 
 # Run DeskPilot in Docker Web Server mode
 CMD ["python", "main.py", "--docker"]
