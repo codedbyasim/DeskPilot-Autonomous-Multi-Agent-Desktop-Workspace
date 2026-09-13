@@ -15,7 +15,6 @@ if str(ROOT) not in sys.path:
 import threading
 import webbrowser
 from backend.server import run_server
-from backend.app import main as run_desktop_app
 
 
 def _start_background_api():
@@ -39,8 +38,17 @@ if __name__ == "__main__":
             webbrowser.open(f"http://localhost:{port}")
         run_server(host=host, port=port)
     else:
+        try:
+            from backend.app import main as run_desktop_app
+        except ImportError as e:
+            print(f"Desktop GUI unavailable: {e}")
+            print("Falling back to Web Server mode on port 5000...")
+            run_server(host="127.0.0.1", port=5000)
+            sys.exit(0)
+
         # Start local API server in daemon thread so regular browsers can also connect
         srv_thread = threading.Thread(target=_start_background_api, daemon=True)
         srv_thread.start()
         run_desktop_app()
+
 

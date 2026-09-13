@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy and install dependencies
 COPY requirements.txt .
-# Filter Windows-specific .NET bindings for headless Linux container
-RUN sed -i '/pywebview/d;/clr_loader/d;/pythonnet/d' requirements.txt && \
+# Filter Windows-specific desktop bindings for headless Linux container
+RUN sed -i -E '/(pywebview|clr_loader|pythonnet)/d' requirements.txt && \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -38,10 +38,11 @@ COPY frontend/ ./frontend/
 COPY agents/ ./agents/
 COPY assets/ ./assets/
 COPY sample_data/ ./sample_data/
+COPY config/ ./config/
 COPY main.py .
 
 # Create persistent runtime directories
-RUN mkdir -p /app/output /app/chats /app/logs
+RUN mkdir -p /app/output /app/chats /app/logs /app/config
 
 # Expose Web Interface & API Port
 EXPOSE 5000
