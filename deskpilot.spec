@@ -51,6 +51,9 @@ hiddenimports = [
     'PIL.Image',
     'pydantic',
     'dotenv',
+    'psutil',
+    'pypdf',
+    'send2trash',
 ]
 
 # Collect backend submodules

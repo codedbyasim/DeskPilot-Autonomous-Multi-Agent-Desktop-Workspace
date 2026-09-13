@@ -24,6 +24,7 @@ reportlab
 # PDF Tools
 pdfplumber
 PyMuPDF
+pypdf
 
 # Web Research Tools
 requests
@@ -35,6 +36,11 @@ duckduckgo-search
 python-dotenv
 Pillow
 pydantic
+psutil
+Send2Trash
+
+# Testing & Quality Assurance
+pytest
 
 # Packaging
 pyinstaller
