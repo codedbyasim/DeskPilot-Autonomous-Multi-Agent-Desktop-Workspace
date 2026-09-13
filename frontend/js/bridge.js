@@ -7,7 +7,11 @@ class DeskPilotBridgeClient {
     constructor() {
         this.ready = false;
         this.mode = 'unknown'; // 'pywebview', 'http', or 'offline'
-        this.apiBase = 'http://127.0.0.1:5000/api';
+        // Dynamically resolve API URL based on current host/origin (works on localhost, Render, Railway, etc.)
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http'))
+            ? window.location.origin
+            : 'http://127.0.0.1:5000';
+        this.apiBase = `${origin}/api`;
         this.eventSource = null;
         this._readyCallbacks = [];
         this._initBridge();
@@ -38,10 +42,10 @@ class DeskPilotBridgeClient {
             await new Promise(r => setTimeout(r, 50));
         }
 
-        // Check if local Python API server is running at http://127.0.0.1:5000
+        // Check if Python API server is running at current host or localhost
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 1200);
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
             const resp = await fetch(`${this.apiBase}/status`, { signal: controller.signal });
             clearTimeout(timeoutId);
             if (resp.ok) {
@@ -49,18 +53,33 @@ class DeskPilotBridgeClient {
                 this._initSSE();
                 this.ready = true;
                 this._flushReady();
-                console.log("DeskPilot connected to local Python backend at", this.apiBase);
+                console.log("DeskPilot connected to Python backend at", this.apiBase);
                 return;
             }
         } catch (e) {
-            // Local server offline
+            // Fallback for local file:/// scheme
+            if (!this.apiBase.includes('127.0.0.1')) {
+                try {
+                    const fallbackBase = 'http://127.0.0.1:5000/api';
+                    const resp = await fetch(`${fallbackBase}/status`);
+                    if (resp.ok) {
+                        this.apiBase = fallbackBase;
+                        this.mode = 'http';
+                        this._initSSE();
+                        this.ready = true;
+                        this._flushReady();
+                        console.log("DeskPilot connected to local Python backend fallback at", this.apiBase);
+                        return;
+                    }
+                } catch (err) {}
+            }
         }
 
         // If neither pywebview nor HTTP server found, mark offline
         this.mode = 'offline';
         this.ready = true;
         this._flushReady();
-        console.warn("DeskPilot Python Backend not reachable. Run 'python main.py' or 'python main.py --web'.");
+        console.warn("DeskPilot Python Backend not reachable at", this.apiBase);
     }
 
     _initSSE() {

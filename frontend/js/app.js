@@ -1033,7 +1033,8 @@ function initApp() {
         try {
             const res = await window.DeskPilot.createAgentDraft(desc);
             if (!res || !res.success || !res.draft) {
-                alert(res ? `Could not draft agent: ${res.error || 'Unknown error'}` : "Desktop Shell Bridge Disconnected: Launch DeskPilot via 'python -m backend.app' to use Amazon Bedrock Custom Agent Builder.");
+                const errorMsg = (res && res.error) ? `Could not draft agent: ${res.error}` : "Could not connect to AI Agent Builder. Please check your connection or AWS Bedrock credentials.";
+                alert(errorMsg);
                 return;
             }
 
