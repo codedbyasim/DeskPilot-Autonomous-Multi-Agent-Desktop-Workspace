@@ -122,6 +122,16 @@ def get_templates():
     return jsonify(bridge.get_template_agents())
 
 
+@app.route("/api/template/add", methods=["POST"])
+def add_template_route():
+    data = request.get_json() or {}
+    template_id = data.get("template_id") or data.get("id")
+    if not template_id:
+        return jsonify({"success": False, "error": "Missing template_id"}), 400
+    res = bridge.add_template_to_workspace(template_id)
+    return jsonify(res)
+
+
 @app.route("/api/task/run", methods=["POST"])
 def run_task():
     data = request.get_json() or {}

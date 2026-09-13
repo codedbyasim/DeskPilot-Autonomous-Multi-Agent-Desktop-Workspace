@@ -102,6 +102,38 @@ class DeskPilotBridge:
             logger.error(f"Error in get_template_agents: {e}")
             return []
 
+    def add_template_to_workspace(self, template_id: str) -> Dict[str, Any]:
+        """
+        Instantiates an active custom agent from a pre-built gallery template.
+        Preserves the template in the gallery and registers a new active assistant in the workspace.
+        """
+        tmpl = self.registry.get_agent(template_id)
+        if not tmpl:
+            return {"success": False, "error": f"Template '{template_id}' not found"}
+
+        draft = dict(tmpl)
+        suffix = uuid.uuid4().hex[:6]
+        clean_id = template_id.replace("custom_", "")
+        draft["id"] = f"custom_{clean_id}_{suffix}"
+        draft["category"] = "custom"
+        draft["created_by"] = "template"
+        draft["status"] = "active"
+        draft["created_at"] = datetime.now().isoformat()
+
+        from backend.tools import TOOL_REGISTRY
+        tools = draft.get("allowed_tools", [])
+        draft["allowed_tools"] = [t for t in tools if t in TOOL_REGISTRY]
+        if not draft["allowed_tools"]:
+            draft["allowed_tools"] = ["search_web"]
+
+        saved, err = self.registry.save_agent(draft)
+        if not saved:
+            return {"success": False, "error": err}
+
+        emit_event("deskpilot:agent_created", {"agent": draft})
+        logger.info(f"Template agent '{draft.get('name')}' instantiated as active agent '{draft.get('id')}'.")
+        return {"success": True, "agent": draft}
+
     # ── 2. Task Execution & Streaming ─────────────────────────────────────────
 
     def run_agent_task(self, agent_id: str, instruction: str) -> Dict[str, Any]:
@@ -298,13 +330,29 @@ class DeskPilotBridge:
     def confirm_create_agent(self, draft: dict) -> Dict[str, Any]:
         """
         Saves an approved custom agent draft into agents/<id>.json after strict validation.
+        If a template draft is provided, clones it into an active custom agent.
         """
         if not isinstance(draft, dict):
             return {"success": False, "error": "Draft must be a dictionary"}
 
-        # Preserve category if template; otherwise set to custom
-        if draft.get("category") != "template":
+        draft = dict(draft)
+
+        # Detect if this is a template being instantiated or added to workspace
+        is_template = (
+            draft.get("category") == "template" or
+            draft.get("id") in ("property_agent", "student_agent", "business_value_agent") or
+            draft.get("created_by") == "template"
+        )
+        if is_template:
+            orig_id = draft.get("id", "agent").replace("custom_", "")
+            if not draft.get("id", "").startswith("custom_"):
+                suffix = uuid.uuid4().hex[:6]
+                draft["id"] = f"custom_{orig_id}_{suffix}"
             draft["category"] = "custom"
+            draft["created_by"] = "template"
+        elif draft.get("category") != "custom":
+            draft["category"] = "custom"
+
         draft["status"] = "active"
         draft["created_at"] = datetime.now().isoformat()
 
@@ -321,7 +369,7 @@ class DeskPilotBridge:
 
         # Notify frontend
         emit_event("deskpilot:agent_created", {"agent": draft})
-        logger.info(f"Custom agent '{draft.get('name')}' ({draft.get('id')}) saved and activated.")
+        logger.info(f"Agent '{draft.get('name')}' ({draft.get('id')}) saved and activated.")
         return {"success": True, "agent": draft}
 
     def delete_custom_agent(self, agent_id: str) -> Dict[str, Any]:

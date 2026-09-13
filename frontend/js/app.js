@@ -142,6 +142,49 @@ function initApp() {
         }
     }
 
+    // ── Responsive Drawer Controls ──────────────────────────────────────────
+    function toggleSidebar(open) {
+        const sidebar = document.getElementById('app-sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (!sidebar || !backdrop) return;
+
+        const isCurrentlyOpen = sidebar.classList.contains('sidebar-open');
+        const shouldOpen = open !== undefined ? open : !isCurrentlyOpen;
+
+        if (shouldOpen) {
+            sidebar.classList.add('sidebar-open');
+            sidebar.classList.remove('-translate-x-full');
+            backdrop.classList.remove('hidden');
+            backdrop.classList.add('active');
+        } else {
+            sidebar.classList.remove('sidebar-open');
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.remove('active');
+            backdrop.classList.add('hidden');
+        }
+    }
+
+    function toggleChatSessions(open) {
+        const sidebar = document.getElementById('chat-sessions-sidebar');
+        const backdrop = document.getElementById('chat-sessions-backdrop');
+        if (!sidebar || !backdrop) return;
+
+        const isCurrentlyOpen = sidebar.classList.contains('chat-sessions-open');
+        const shouldOpen = open !== undefined ? open : !isCurrentlyOpen;
+
+        if (shouldOpen) {
+            sidebar.classList.add('chat-sessions-open');
+            sidebar.classList.remove('-translate-x-full');
+            backdrop.classList.remove('hidden');
+            backdrop.classList.add('active');
+        } else {
+            sidebar.classList.remove('chat-sessions-open');
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.remove('active');
+            backdrop.classList.add('hidden');
+        }
+    }
+
     function setupNavigation() {
         const links = document.querySelectorAll('.sidebar-link');
         links.forEach(link => {
@@ -149,7 +192,38 @@ function initApp() {
                 e.preventDefault();
                 const view = link.getAttribute('data-view') || 'home';
                 switchView(view);
+                if (window.innerWidth < 1024) {
+                    toggleSidebar(false);
+                }
             });
+        });
+
+        // Close drawers when window resizes to desktop breakpoint
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) {
+                const sidebar = document.getElementById('app-sidebar');
+                const backdrop = document.getElementById('sidebar-backdrop');
+                if (sidebar) {
+                    sidebar.classList.remove('sidebar-open');
+                    sidebar.classList.remove('-translate-x-full');
+                }
+                if (backdrop) {
+                    backdrop.classList.add('hidden');
+                    backdrop.classList.remove('active');
+                }
+            }
+            if (window.innerWidth >= 768) {
+                const chatSidebar = document.getElementById('chat-sessions-sidebar');
+                const chatBackdrop = document.getElementById('chat-sessions-backdrop');
+                if (chatSidebar) {
+                    chatSidebar.classList.remove('chat-sessions-open');
+                    chatSidebar.classList.remove('-translate-x-full');
+                }
+                if (chatBackdrop) {
+                    chatBackdrop.classList.add('hidden');
+                    chatBackdrop.classList.remove('active');
+                }
+            }
         });
     }
 
@@ -1277,19 +1351,41 @@ function initApp() {
     }
 
     async function addTemplateAgent(agentId) {
-        const templates = await window.DeskPilot.getTemplateAgents();
-        const tmpl = templates.find(t => (t.id === agentId || t.agent_id === agentId));
-        if (!tmpl) return;
+        try {
+            const templates = await window.DeskPilot.getTemplateAgents();
+            const tmpl = (templates || []).find(t => (t.id === agentId || t.agent_id === agentId));
+            if (!tmpl) {
+                showToast('Template not found in catalog', 'error');
+                return;
+            }
 
-        const res = await window.DeskPilot.confirmCreateAgent(tmpl);
-        if (res.success) {
-            closeTemplateGallery();
-            await loadAgents();
-            await loadCatalogAgents();
-            await loadRecentActivity();
-            alert(`Template '${tmpl.name}' added to your active agents!`);
-        } else {
-            alert(`Could not add template: ${res.error}`);
+            const cleanId = (tmpl.id || tmpl.agent_id || agentId).replace(/^custom_/, '');
+            const suffix = Math.random().toString(36).slice(2, 8);
+            const clone = {
+                ...tmpl,
+                id: `custom_${cleanId}_${suffix}`,
+                agent_id: `custom_${cleanId}_${suffix}`,
+                category: 'custom',
+                created_by: 'template',
+                status: 'active',
+                created_at: new Date().toISOString()
+            };
+
+            const res = await window.DeskPilot.confirmCreateAgent(clone);
+            if (res && (res.success || res.agent)) {
+                closeTemplateGallery();
+                await loadAgents();
+                await loadCatalogAgents();
+                await loadRecentActivity();
+                const agentName = res.agent?.name || tmpl.name || 'Agent';
+                showToast(`'${agentName}' successfully added to your active workspace!`, 'success');
+                switchView('home');
+            } else {
+                showToast(`Could not add template: ${res?.error || 'Unknown error'}`, 'error');
+            }
+        } catch (err) {
+            console.error('Error adding template agent:', err);
+            showToast(`Failed to add template: ${err.message}`, 'error');
         }
     }
 
@@ -1554,6 +1650,9 @@ function initApp() {
     async function selectChatSession(sessionId) {
         currentChatSessionId = sessionId;
         updateActiveSessionHighlight();
+        if (window.innerWidth < 768) {
+            toggleChatSessions(false);
+        }
 
         const messagesContainer = document.getElementById('chat-messages-container');
         if (!messagesContainer) return;
@@ -2697,6 +2796,8 @@ function initApp() {
         showTopAlert,
         loadStorageHeaderPill,
         switchView,
+        toggleSidebar,
+        toggleChatSessions,
         refreshAuditHistory,
         submitDynamicForm,
         skipDynamicForm,

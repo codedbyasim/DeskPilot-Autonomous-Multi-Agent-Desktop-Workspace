@@ -129,6 +129,12 @@ class DeskPilotBridgeClient {
                     return await (await fetch(`${base}/agent/${encodeURIComponent(args[0])}`)).json();
                 case 'get_template_agents':
                     return await (await fetch(`${base}/templates`)).json();
+                case 'add_template_to_workspace':
+                    return await (await fetch(`${base}/template/add`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ template_id: args[0] })
+                    })).json();
                 case 'run_agent_task':
                     return await (await fetch(`${base}/task/run`, {
                         method: 'POST',
@@ -351,6 +357,10 @@ class DeskPilotBridgeClient {
 
     async confirmCreateAgent(draft) {
         return await this._call('confirm_create_agent', draft);
+    }
+
+    async addTemplateToWorkspace(templateId) {
+        return await this._call('add_template_to_workspace', templateId);
     }
 
     async deleteCustomAgent(agentId) {

@@ -39,22 +39,32 @@
 </head>
 <body class="h-full flex overflow-hidden text-slate-200 antialiased selection:bg-indigo-500 selection:text-white">
 
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="sidebar-backdrop" onclick="window.DeskPilotApp.toggleSidebar(false)"
+         class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 hidden transition-opacity duration-200 lg:hidden"></div>
+
     <!-- ── Sidebar Navigation ──────────────────────────────────────────────── -->
-    <aside class="w-72 bg-[#0E1526] border-r border-slate-800/80 flex flex-col justify-between flex-shrink-0 select-none">
-        <div class="p-6">
-            <!-- App Branding Header -->
-            <div class="flex items-center gap-3 mb-8">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 p-0.5 shadow-lg shadow-indigo-600/20 flex items-center justify-center">
-                    <img src="assets/logo.png" alt="DeskPilot Logo" class="w-full h-full object-contain rounded-[10px]"
-                         onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polygon points=\'12 2 2 7 12 12 22 7 12 2\'/><polyline points=\'2 17 12 22 22 17\'/><polyline points=\'2 12 12 17 22 12\'/></svg>'">
+    <aside id="app-sidebar" class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#0E1526] border-r border-slate-800/80 flex flex-col justify-between flex-shrink-0 select-none transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none">
+        <div class="p-4 sm:p-6 overflow-y-auto flex-1">
+            <!-- App Branding Header with Close Button on Mobile -->
+            <div class="flex items-center justify-between gap-3 mb-6 sm:mb-8">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 p-0.5 shadow-lg shadow-indigo-600/20 flex items-center justify-center flex-shrink-0">
+                        <img src="assets/logo.png" alt="DeskPilot Logo" class="w-full h-full object-contain rounded-[10px]"
+                             onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polygon points=\'12 2 2 7 12 12 22 7 12 2\'/><polyline points=\'2 17 12 22 22 17\'/><polyline points=\'2 12 12 17 22 12\'/></svg>'">
+                    </div>
+                    <div class="truncate">
+                        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-1.5 leading-tight">
+                            DeskPilot
+                            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.0</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400 font-medium truncate">Autonomous Multi-Agent</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-1.5 leading-tight">
-                        DeskPilot
-                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.0</span>
-                    </h1>
-                    <p class="text-[11px] text-slate-400 font-medium">Autonomous Multi-Agent</p>
-                </div>
+                <!-- Close Button (Mobile Only) -->
+                <button id="btn-close-sidebar" onclick="window.DeskPilotApp.toggleSidebar(false)" class="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Close Menu">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
 
             <!-- Navigation Links with Data-View Routing -->
@@ -80,7 +90,7 @@
             </nav>
 
             <!-- Active Agents Section in Sidebar -->
-            <div class="mt-8 pt-6 border-t border-slate-800/80">
+            <div class="mt-6 pt-5 border-t border-slate-800/80">
                 <div class="flex items-center justify-between mb-3 px-1">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Agents</span>
                     <span id="active-agents-badge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">4</span>
@@ -92,53 +102,78 @@
         </div>
 
         <!-- Sidebar Footer Status -->
-        <div class="p-4 border-t border-slate-800/80 bg-slate-900/30">
+        <div class="p-3 sm:p-4 border-t border-slate-800/80 bg-slate-900/30 flex-shrink-0">
             <div class="flex items-center justify-between text-xs">
                 <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
-                    <span class="text-slate-300 font-medium">Amazon Bedrock</span>
+                    <div class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></div>
+                    <span class="text-slate-300 font-medium truncate">Amazon Bedrock</span>
                 </div>
-                <span class="text-[10px] text-slate-500 font-mono">Nova Pro</span>
+                <span class="text-[10px] text-slate-500 font-mono flex-shrink-0">Nova Pro</span>
             </div>
         </div>
     </aside>
 
     <!-- ── Main Workspace ──────────────────────────────────────────────────── -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         <!-- Top Navigation Bar -->
-        <header class="h-16 border-b border-slate-800/80 bg-[#0E1526]/80 backdrop-blur px-8 flex items-center justify-between flex-shrink-0">
-            <!-- Search Bar -->
-            <div class="relative w-96">
-                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                <input id="global-search-input" type="text" placeholder="Search agents, tasks, deliverables, or commands..."
-                       class="w-full bg-slate-900/70 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+        <header class="h-14 sm:h-16 border-b border-slate-800/80 bg-[#0E1526]/90 backdrop-blur px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4 flex-shrink-0">
+            <!-- Left Controls: Hamburger Button + Search Bar -->
+            <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                <!-- Hamburger Menu Button (visible on < lg) -->
+                <button id="btn-toggle-sidebar" onclick="window.DeskPilotApp.toggleSidebar(true)"
+                        class="lg:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800 flex-shrink-0 transition-colors"
+                        title="Open Menu">
+                    <i data-lucide="menu" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+
+                <!-- Responsive Global Search Bar -->
+                <div class="relative flex-1 max-w-xs sm:max-w-sm md:max-w-md min-w-[110px]">
+                    <i data-lucide="search" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input id="global-search-input" type="text" placeholder="Search agents, tasks, deliverables..."
+                           class="w-full bg-slate-900/70 border border-slate-800 rounded-xl pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+                </div>
             </div>
 
             <!-- Top Right Action Controls -->
-            <div class="flex items-center gap-3">
-                <button id="btn-save-location-header" onclick="window.DeskPilotApp.openSaveLocationModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-500/25 text-xs font-medium transition-all cursor-pointer" title="Configure file save location">
-                    <i data-lucide="folder-output" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span>Save to: <span id="header-save-loc-label" class="font-bold text-white">Desktop</span></span>
+            <div class="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+                <!-- Save Location Header Button -->
+                <button id="btn-save-location-header" onclick="window.DeskPilotApp.openSaveLocationModal()"
+                        class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-500/25 text-xs font-medium transition-all cursor-pointer"
+                        title="Configure file save location">
+                    <i data-lucide="folder-output" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0"></i>
+                    <span class="hidden md:inline">Save to: </span>
+                    <span id="header-save-loc-label" class="font-bold text-white truncate max-w-[70px] sm:max-w-[100px]">Desktop</span>
                 </button>
-                <button id="header-storage-pill" onclick="window.DeskPilotApp.openStorageModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80 text-xs font-medium transition-all cursor-pointer" title="System Storage & Health Diagnostics">
-                    <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span>C: <strong id="header-storage-val" class="text-white">-- GB</strong></span>
-                    <span id="header-storage-badge" class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Storage</span>
+
+                <!-- Storage Diagnostics Pill -->
+                <button id="header-storage-pill" onclick="window.DeskPilotApp.openStorageModal()"
+                        class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80 text-xs font-medium transition-all cursor-pointer"
+                        title="System Storage & Health Diagnostics">
+                    <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0"></i>
+                    <span class="truncate">C: <strong id="header-storage-val" class="text-white">-- GB</strong></span>
+                    <span id="header-storage-badge" class="hidden sm:inline-block text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Storage</span>
                 </button>
-                <div id="system-status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>System Ready</span>
+
+                <!-- System Ready Pill -->
+                <div id="system-status-pill" class="hidden sm:flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+                    <span class="hidden md:inline">System Ready</span>
+                    <span class="md:hidden">Ready</span>
                 </div>
-                <button id="btn-notifications" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 relative">
+
+                <!-- Notifications Button -->
+                <button id="btn-notifications" class="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 relative transition-colors" title="Notifications">
                     <i data-lucide="bell" class="w-4 h-4"></i>
                     <span class="w-2 h-2 rounded-full bg-indigo-500 absolute top-1.5 right-1.5"></span>
                 </button>
-                <div class="flex items-center gap-2.5 pl-3 border-l border-slate-800">
-                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+
+                <!-- User Profile Badge -->
+                <div class="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-800">
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-xs font-bold text-white shadow-sm flex-shrink-0">
                         DP
                     </div>
-                    <div class="text-left leading-tight hidden sm:block">
+                    <div class="text-left leading-tight hidden lg:block">
                         <div class="text-xs font-semibold text-white">DeskPilot User</div>
                         <div class="text-[10px] text-slate-400">AWS Hackathon 2026</div>
                     </div>
@@ -146,18 +181,18 @@
             </div>
         </header>
 
-        <!-- Top Live Alert Banner (Window-wide notification of system/storage/agent events) -->
-        <div id="top-alert-banner" class="hidden px-8 py-2.5 bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border-b border-indigo-500/30 text-xs flex items-center justify-between transition-all duration-300 shadow-md">
-            <div class="flex items-center gap-3 overflow-hidden">
+        <!-- Top Live Alert Banner -->
+        <div id="top-alert-banner" class="hidden px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border-b border-indigo-500/30 text-xs flex items-center justify-between transition-all duration-300 shadow-md">
+            <div class="flex items-center gap-2.5 overflow-hidden">
                 <div id="top-alert-icon" class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0">
                     <i data-lucide="bell" class="w-3.5 h-3.5"></i>
                 </div>
                 <div class="truncate">
-                    <span id="top-alert-title" class="font-bold text-white mr-2">System Notification</span>
+                    <span id="top-alert-title" class="font-bold text-white mr-1.5 sm:mr-2">System Notification</span>
                     <span id="top-alert-msg" class="text-slate-300">DeskPilot workspace ready.</span>
                 </div>
             </div>
-            <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+            <div class="flex items-center gap-2 flex-shrink-0 ml-3">
                 <button id="btn-top-alert-action" class="hidden px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-[11px] font-semibold transition-all">
                     Action
                 </button>
@@ -168,27 +203,27 @@
         </div>
 
         <!-- Scrollable Main Content -->
-        <main class="flex-1 overflow-y-auto p-8 bg-[#090D16]">
+        <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-[#090D16]">
 
             <!-- ── VIEW 1: HOME DASHBOARD ──────────────────────────────────────── -->
-            <div id="view-home" class="view-panel space-y-8">
+            <div id="view-home" class="view-panel space-y-6 sm:space-y-8">
                 <!-- Hero Banner: Meet Your AI Agents -->
-                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-950/60 via-slate-900/80 to-purple-950/50 border border-indigo-500/20 p-8 shadow-xl">
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-950/60 via-slate-900/80 to-purple-950/50 border border-indigo-500/20 p-4 sm:p-6 lg:p-8 shadow-xl">
                     <div class="relative z-10 max-w-2xl">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-3">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-2.5 sm:mb-3">
                             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Autonomous Multi-Agent Workspace
                         </div>
-                        <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+                        <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white mb-2 leading-tight">
                             Meet Your AI Agents
                         </h2>
-                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4 sm:mb-6">
                             They handle your daily tasks, your work, your health, your finances, and anything else you teach them to do, and only interrupt you when a real decision is needed.
                         </p>
-                        <div class="flex items-center gap-3">
-                            <button id="btn-create-agent" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/25">
+                        <div class="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                            <button id="btn-create-agent" class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/25 cursor-pointer">
                                 <i data-lucide="plus" class="w-4 h-4"></i> Create Custom Agent
                             </button>
-                            <button id="btn-template-gallery" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700/60 transition-all">
+                            <button id="btn-template-gallery" class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700/60 transition-all cursor-pointer">
                                 <i data-lucide="layers" class="w-4 h-4"></i> Agent Templates
                             </button>
                         </div>
@@ -200,8 +235,8 @@
 
                 <!-- Agent Grid Section -->
                 <div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <div class="flex items-center justify-between mb-3 sm:mb-4">
+                        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                             <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i> Active Assistants
                         </h3>
                         <button onclick="window.DeskPilotApp.switchView('agents')" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
@@ -209,17 +244,17 @@
                         </button>
                     </div>
 
-                    <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <div id="agents-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
                         <!-- Loaded dynamically via app.js -->
                     </div>
                 </div>
 
                 <!-- Activity & Actions Two-Column Feed -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
                     <!-- Recent Activity Feed (2 Cols) -->
-                    <div class="lg:col-span-2 bg-[#0E1526] border border-slate-800/80 rounded-2xl p-6">
-                        <div class="flex items-center justify-between mb-5">
+                    <div class="lg:col-span-2 bg-[#0E1526] border border-slate-800/80 rounded-2xl p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-4 sm:mb-5">
                             <h3 class="text-sm font-bold text-white flex items-center gap-2">
                                 <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> Recent Activity
                             </h3>
@@ -227,33 +262,33 @@
                                 Full Audit History →
                             </button>
                         </div>
-                        <div id="activity-feed" class="space-y-3">
+                        <div id="activity-feed" class="space-y-2.5 sm:space-y-3">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
 
                     <!-- Right Quick Panel (1 Col) -->
-                    <div class="bg-[#0E1526] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
+                    <div class="bg-[#0E1526] border border-slate-800/80 rounded-2xl p-4 sm:p-6 flex flex-col justify-between">
                         <div>
-                            <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-3.5">
                                 <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Trust & Safety Model
                             </h3>
-                            <div class="space-y-2.5 text-xs">
-                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                            <div class="space-y-2 text-xs">
+                                <div class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
                                     <div class="flex items-center gap-2">
                                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
                                         <span class="text-slate-300 font-medium">Green Tier</span>
                                     </div>
                                     <span class="text-slate-400 text-[11px]">Auto-executes</span>
                                 </div>
-                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                                <div class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
                                     <div class="flex items-center gap-2">
                                         <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
                                         <span class="text-slate-300 font-medium">Yellow Tier</span>
                                     </div>
                                     <span class="text-slate-400 text-[11px]">Requires Confirm</span>
                                 </div>
-                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                                <div class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
                                     <div class="flex items-center gap-2">
                                         <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
                                         <span class="text-slate-300 font-medium">Red Tier</span>
@@ -263,7 +298,7 @@
                             </div>
                         </div>
 
-                        <div class="mt-6 pt-4 border-t border-slate-800/80">
+                        <div class="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-800/80">
                             <div class="text-[11px] text-slate-500 flex items-center justify-between">
                                 <span>DeskPilot v2.0.0</span>
                                 <span>pywebview + Bedrock</span>
@@ -275,8 +310,8 @@
             </div>
 
             <!-- ── VIEW 2: MY AGENTS ───────────────────────────────────────────── -->
-            <div id="view-agents" class="view-panel space-y-6 view-hidden">
-                <div class="flex items-center justify-between">
+            <div id="view-agents" class="view-panel space-y-5 sm:space-y-6 view-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-bold text-white flex items-center gap-2">
                             <i data-lucide="bot" class="w-5 h-5 text-indigo-400"></i> My AI Agents
@@ -284,14 +319,14 @@
                         <p class="text-xs text-slate-400 mt-1">Manage your active, template, and custom created assistants.</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <button onclick="window.DeskPilotApp.openBuilderModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+                        <button onclick="window.DeskPilotApp.openBuilderModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Create Custom Agent
                         </button>
                     </div>
                 </div>
 
                 <!-- Filter Tabs -->
-                <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
+                <div class="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
                     <button onclick="window.DeskPilotApp.filterAgentsCategory('all')" id="tab-agent-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
                         All Agents (<span id="count-agents-all">0</span>)
                     </button>
@@ -301,21 +336,20 @@
                     <button onclick="window.DeskPilotApp.filterAgentsCategory('custom')" id="tab-agent-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200">
                         Custom (<span id="count-agents-custom">0</span>)
                     </button>
-                    <button onclick="window.DeskPilotApp.openTemplateGallery()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-indigo-300 ml-auto flex items-center gap-1.5">
+                    <button onclick="window.DeskPilotApp.openTemplateGallery()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-indigo-300 sm:ml-auto flex items-center gap-1.5 cursor-pointer">
                         <i data-lucide="layers" class="w-3.5 h-3.5"></i> Template Gallery
                     </button>
                 </div>
 
                 <!-- Full Agents Catalog Grid -->
-                <div id="catalog-agents-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div id="catalog-agents-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     <!-- Populated dynamically via app.js -->
                 </div>
             </div>
 
             <!-- ── VIEW 3: TASKS ───────────────────────────────────────────────── -->
-            <!-- ── VIEW 3: TASKS ───────────────────────────────────────────────── -->
-            <div id="view-tasks" class="view-panel space-y-6 view-hidden">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div id="view-tasks" class="view-panel space-y-5 sm:space-y-6 view-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-white flex items-center gap-2">
                             <i data-lucide="check-square" class="w-5 h-5 text-indigo-400"></i> Active & Recent Tasks
@@ -323,59 +357,59 @@
                         <p class="text-xs text-slate-400 mt-1">Monitor autonomous agent executions, live progress, and deliverables in real-time.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="window.DeskPilotApp.openTaskModal('personal_assistant')" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+                        <button onclick="window.DeskPilotApp.openTaskModal('personal_assistant')" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer">
                             <i data-lucide="play" class="w-3.5 h-3.5"></i> Launch New Task
                         </button>
                     </div>
                 </div>
 
                 <!-- Task Metrics Bar -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div class="p-3 sm:p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
                         <div>
                             <span class="text-[11px] text-slate-400 block font-medium">Total Tasks</span>
-                            <span id="metric-tasks-total" class="text-xl font-bold text-white font-mono mt-0.5 block">0</span>
+                            <span id="metric-tasks-total" class="text-lg sm:text-xl font-bold text-white font-mono mt-0.5 block">0</span>
                         </div>
-                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
                             <i data-lucide="layers" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                    <div class="p-3 sm:p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
                         <div>
                             <span class="text-[11px] text-slate-400 block font-medium">Active / Running</span>
-                            <span id="metric-tasks-running" class="text-xl font-bold text-emerald-400 font-mono mt-0.5 block">0</span>
+                            <span id="metric-tasks-running" class="text-lg sm:text-xl font-bold text-emerald-400 font-mono mt-0.5 block">0</span>
                         </div>
-                        <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
                             <i data-lucide="activity" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                    <div class="p-3 sm:p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
                         <div>
                             <span class="text-[11px] text-slate-400 block font-medium">Completed</span>
-                            <span id="metric-tasks-completed" class="text-xl font-bold text-indigo-300 font-mono mt-0.5 block">0</span>
+                            <span id="metric-tasks-completed" class="text-lg sm:text-xl font-bold text-indigo-300 font-mono mt-0.5 block">0</span>
                         </div>
-                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300">
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 flex-shrink-0">
                             <i data-lucide="check-circle-2" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <div class="p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
+                    <div class="p-3 sm:p-4 rounded-xl bg-[#0E1526] border border-slate-800 flex items-center justify-between">
                         <div>
                             <span class="text-[11px] text-slate-400 block font-medium">Failed / Cancelled</span>
-                            <span id="metric-tasks-failed" class="text-xl font-bold text-rose-400 font-mono mt-0.5 block">0</span>
+                            <span id="metric-tasks-failed" class="text-lg sm:text-xl font-bold text-rose-400 font-mono mt-0.5 block">0</span>
                         </div>
-                        <div class="w-9 h-9 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 flex-shrink-0">
                             <i data-lucide="alert-triangle" class="w-4 h-4"></i>
                         </div>
                     </div>
                 </div>
 
                 <!-- Filter Pills & Quick Controls -->
-                <div class="flex items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
-                    <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-                        <button onclick="window.DeskPilotApp.filterTasks('all')" id="task-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all">All Tasks</button>
-                        <button onclick="window.DeskPilotApp.filterTasks('running')" id="task-filter-running" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Running</button>
-                        <button onclick="window.DeskPilotApp.filterTasks('completed')" id="task-filter-completed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Completed</button>
-                        <button onclick="window.DeskPilotApp.filterTasks('failed')" id="task-filter-failed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Failed</button>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                    <div class="flex flex-wrap items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                        <button onclick="window.DeskPilotApp.filterTasks('all')" id="task-filter-all" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all">All Tasks</button>
+                        <button onclick="window.DeskPilotApp.filterTasks('running')" id="task-filter-running" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Running</button>
+                        <button onclick="window.DeskPilotApp.filterTasks('completed')" id="task-filter-completed" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Completed</button>
+                        <button onclick="window.DeskPilotApp.filterTasks('failed')" id="task-filter-failed" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all">Failed</button>
                     </div>
                     <button onclick="window.DeskPilotApp.refreshTasksView()" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all text-xs flex items-center gap-1.5" title="Refresh Tasks">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
@@ -389,23 +423,23 @@
             </div>
 
             <!-- ── VIEW 4: HISTORY & AUDIT ─────────────────────────────────────── -->
-            <div id="view-history" class="view-panel space-y-6 view-hidden">
-                <div class="flex items-center justify-between">
+            <div id="view-history" class="view-panel space-y-5 sm:space-y-6 view-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-bold text-white flex items-center gap-2">
                             <i data-lucide="history" class="w-5 h-5 text-indigo-400"></i> Audit History Trail
                         </h2>
                         <p class="text-xs text-slate-400 mt-1">Verifiable JSON-lines audit trail of every tool invocation and agent decision.</p>
                     </div>
-                    <button onclick="window.DeskPilotApp.refreshAuditHistory()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5">
+                    <button onclick="window.DeskPilotApp.refreshAuditHistory()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5 self-start sm:self-center">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh Audit
                     </button>
                 </div>
 
-                <!-- Audit Trail Table -->
-                <div class="bg-[#0E1526] border border-slate-800/80 rounded-2xl overflow-hidden shadow-lg">
+                <!-- Audit Trail Table Container with Horizontal Scroll -->
+                <div class="audit-table-wrapper bg-[#0E1526] border border-slate-800/80 rounded-2xl overflow-hidden shadow-lg">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
+                        <table class="w-full text-left text-xs min-w-[620px]">
                             <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
                                     <th class="py-3 px-4 font-bold">Time</th>
@@ -433,9 +467,9 @@
                     <p class="text-xs text-slate-400 mt-1">System configuration, Bedrock LLM settings, and Trust-Tier parameters.</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 text-xs">
                     <!-- LLM & Orchestrator Config -->
-                    <div class="p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
+                    <div class="p-4 sm:p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i> Amazon Bedrock Engine
                         </h3>
@@ -460,7 +494,7 @@
                     </div>
 
                     <!-- Trust Tiers & Policies Card -->
-                    <div class="p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
+                    <div class="p-4 sm:p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i> Trust-Tier Security Policies
                         </h3>
@@ -482,7 +516,7 @@
                 </div>
 
                 <!-- Software Manager & Winget Catalog (Full Width) -->
-                <div class="mt-6 p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
+                <div class="mt-6 p-4 sm:p-6 rounded-2xl bg-[#0E1526] border border-slate-800 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
                         <div>
                             <h3 class="text-sm font-bold text-white flex items-center gap-2">
@@ -506,56 +540,76 @@
             </div>
 
             <!-- ── VIEW 6: CONVERSATIONAL CHAT (CHATGPT/GEMINI STYLE) ────────────────── -->
-            <div id="view-chat" class="view-panel view-hidden -m-8 h-[calc(100vh-4rem)] flex overflow-hidden">
-                <!-- Left Column: Recent Chats Sidebar -->
-                <div class="w-72 bg-[#0B101D] border-r border-slate-800/80 flex flex-col flex-shrink-0 h-full">
+            <div id="view-chat" class="view-panel view-hidden -m-3 sm:-m-5 lg:-m-8 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] flex overflow-hidden relative">
+                <!-- Mobile Backdrop for Chat Sessions -->
+                <div id="chat-sessions-backdrop" onclick="window.DeskPilotApp.toggleChatSessions(false)"
+                     class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+                <!-- Left Column: Recent Chats Sidebar (Desktop fixed, Mobile off-canvas drawer) -->
+                <div id="chat-sessions-sidebar" class="w-64 sm:w-72 bg-[#0B101D] border-r border-slate-800/80 flex flex-col flex-shrink-0 h-full fixed inset-y-0 left-0 z-30 md:static transform -translate-x-full md:translate-x-0 transition-transform duration-250 ease-in-out shadow-2xl md:shadow-none">
                     <!-- New Chat Header -->
-                    <div class="p-4 border-b border-slate-800/80 space-y-3">
-                        <button id="btn-new-chat" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/20">
+                    <div class="p-3 sm:p-4 border-b border-slate-800/80 space-y-3">
+                        <div class="flex items-center justify-between md:hidden pb-1 border-b border-slate-800/60">
+                            <span class="text-xs font-bold text-white flex items-center gap-2">
+                                <i data-lucide="message-square" class="w-3.5 h-3.5 text-indigo-400"></i> Recent Chats
+                            </span>
+                            <button onclick="window.DeskPilotApp.toggleChatSessions(false)" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <button id="btn-new-chat" class="w-full flex items-center justify-center gap-2 px-4 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/20 cursor-pointer">
                             <i data-lucide="plus" class="w-4 h-4"></i> New Chat
                         </button>
                         <div class="relative">
-                            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                             <input id="chat-search-input" type="text" placeholder="Search recent chats..."
                                    class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50">
                         </div>
                     </div>
 
                     <!-- Recent Chats Session List -->
-                    <div class="flex-1 overflow-y-auto p-3 space-y-1" id="chat-sessions-list">
+                    <div class="flex-1 overflow-y-auto p-2 sm:p-3 space-y-1" id="chat-sessions-list">
                         <!-- Populated dynamically via app.js -->
                     </div>
 
                     <!-- Session List Footer Stats -->
-                    <div class="p-3 border-t border-slate-800/80 text-[11px] text-slate-500 flex items-center justify-between">
+                    <div class="p-3 border-t border-slate-800/80 text-[11px] text-slate-500 flex items-center justify-between flex-shrink-0">
                         <span>Recent Sessions</span>
                         <span id="chat-session-count" class="font-mono text-slate-400">0</span>
                     </div>
                 </div>
 
                 <!-- Right Column: Active Conversation Thread -->
-                <div class="flex-1 flex flex-col h-full bg-[#090D16] relative overflow-hidden">
+                <div class="flex-1 flex flex-col h-full bg-[#090D16] relative overflow-hidden min-w-0">
                     <!-- Chat Header -->
-                    <div class="h-14 border-b border-slate-800/80 bg-[#0E1526]/70 backdrop-blur px-6 flex items-center justify-between flex-shrink-0">
-                        <div class="flex items-center gap-3">
-                            <div id="chat-header-avatar" class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                    <div class="h-14 border-b border-slate-800/80 bg-[#0E1526]/80 backdrop-blur px-3 sm:px-6 flex items-center justify-between gap-2 flex-shrink-0">
+                        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <!-- Toggle Button for Chat Sessions Drawer on Mobile -->
+                            <button id="btn-toggle-chat-sessions" onclick="window.DeskPilotApp.toggleChatSessions(true)"
+                                    class="md:hidden p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700/80 flex-shrink-0"
+                                    title="Recent Chats">
+                                <i data-lucide="message-square" class="w-4 h-4"></i>
+                            </button>
+
+                            <div id="chat-header-avatar" class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
                                 <i data-lucide="bot" class="w-4 h-4"></i>
                             </div>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <select id="chat-agent-select" class="bg-slate-900 border border-slate-700 text-xs font-bold text-white rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 sm:gap-2">
+                                    <select id="chat-agent-select" class="bg-slate-900 border border-slate-700 text-xs font-bold text-white rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer truncate max-w-[130px] sm:max-w-xs">
                                         <!-- Populated dynamically with active agents -->
                                     </select>
-                                    <span id="chat-agent-badge" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Ready</span>
+                                    <span id="chat-agent-badge" class="hidden sm:inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Ready</span>
                                 </div>
-                                <div id="chat-agent-description" class="text-[11px] text-slate-400 truncate max-w-md">Personal Assistant</div>
+                                <div id="chat-agent-description" class="text-[11px] text-slate-400 truncate max-w-[140px] sm:max-w-md">Personal Assistant</div>
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                             <div class="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                <span>Bedrock Nova Pro</span>
+                                <span class="hidden md:inline">Bedrock Nova Pro</span>
+                                <span class="md:hidden">Nova Pro</span>
                             </div>
                             <button id="btn-delete-current-chat" title="Delete conversation" class="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -564,32 +618,32 @@
                     </div>
 
                     <!-- Chat Messages Container -->
-                    <div id="chat-messages-container" class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div id="chat-messages-container" class="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
                         <!-- Empty state or messages rendered dynamically -->
                     </div>
 
                     <!-- Tool Execution Live Status Pill (Shown while tool runs) -->
-                    <div id="chat-tool-live-pill" class="hidden px-6 py-2.5 bg-indigo-950/50 border-t border-indigo-500/20 flex items-center gap-3 text-xs">
+                    <div id="chat-tool-live-pill" class="hidden px-4 sm:px-6 py-2 bg-indigo-950/50 border-t border-indigo-500/20 flex items-center gap-2.5 text-xs">
                         <span class="animate-spin text-indigo-400">⚙</span>
-                        <span id="chat-tool-live-text" class="text-indigo-300 font-mono">Executing tool...</span>
+                        <span id="chat-tool-live-text" class="text-indigo-300 font-mono truncate">Executing tool...</span>
                     </div>
 
                     <!-- Bottom Input Area -->
-                    <div class="p-4 border-t border-slate-800/80 bg-[#0E1526]/80 backdrop-blur flex-shrink-0 space-y-3">
+                    <div class="p-2.5 sm:p-4 border-t border-slate-800/80 bg-[#0E1526]/85 backdrop-blur flex-shrink-0 space-y-2.5 sm:space-y-3">
                         <!-- Quick Suggestion Chips -->
-                        <div id="chat-quick-suggestions" class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                        <div id="chat-quick-suggestions" class="flex items-center gap-2 overflow-x-auto pb-1 text-xs whitespace-nowrap">
                             <!-- Populated dynamically based on agent -->
                         </div>
 
                         <!-- Input Box -->
-                        <div class="relative flex items-end gap-2 bg-slate-900 border border-slate-800 focus-within:border-indigo-500/50 rounded-2xl p-2.5 transition-all shadow-lg">
-                            <textarea id="chat-input-textarea" rows="1" placeholder="Ask anything, request research, or describe a task (Shift+Enter for new line)..."
-                                      class="flex-1 max-h-36 bg-transparent px-3 py-1 text-sm text-slate-200 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"></textarea>
-                            <button id="btn-send-chat" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <div class="relative flex items-end gap-2 bg-slate-900 border border-slate-800 focus-within:border-indigo-500/50 rounded-2xl p-2 sm:p-2.5 transition-all shadow-lg">
+                            <textarea id="chat-input-textarea" rows="1" placeholder="Ask anything, request research, or describe a task..."
+                                      class="flex-1 max-h-36 bg-transparent px-2.5 sm:px-3 py-1 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"></textarea>
+                            <button id="btn-send-chat" class="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
                                 <i data-lucide="send" class="w-4 h-4"></i>
                             </button>
                         </div>
-                        <div class="text-[10px] text-center text-slate-500">
+                        <div class="text-[10px] text-center text-slate-500 truncate px-2">
                             DeskPilot Multi-Agent Workspace • Powered by Strands Agents SDK & Amazon Bedrock
                         </div>
                     </div>
@@ -600,8 +654,8 @@
     </div>
 
     <!-- ── Task Execution Modal ─────────────────────────────────────────── -->
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
-        <div class="modal-container w-full max-w-lg bg-[#0E1526] border border-slate-700/80 rounded-2xl shadow-2xl p-6 relative">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-lg mx-auto bg-[#0E1526] border border-slate-700/80 rounded-2xl shadow-2xl p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <button id="btn-close-task-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -805,8 +859,8 @@
     </div>
 
     <!-- ── Trust Approval Required Modal ───────────────────────────────────── -->
-    <div id="approval-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
-        <div class="modal-container w-full max-w-md bg-[#0E1526] border border-amber-500/40 rounded-2xl shadow-2xl p-6 relative">
+    <div id="approval-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-md mx-auto bg-[#0E1526] border border-amber-500/40 rounded-2xl shadow-2xl p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <div class="flex items-start gap-3.5 mb-4">
                 <div id="approval-badge-icon" class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
                     <i data-lucide="shield-alert" class="w-5 h-5"></i>
@@ -859,14 +913,14 @@
                 </div>
             </div>
 
-            <div class="mt-6 flex items-center justify-end gap-2.5">
-                <button id="btn-deny-approval" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all flex items-center gap-1.5">
+            <div class="mt-6 flex flex-wrap items-center justify-end gap-2.5">
+                <button id="btn-deny-approval" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all flex items-center gap-1.5 cursor-pointer">
                     <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Deny
                 </button>
-                <button id="btn-approve-all" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/35 text-indigo-300 border border-indigo-500/40 transition-all flex items-center gap-1.5" title="Approve this and all subsequent file moves in this operation">
+                <button id="btn-approve-all" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/35 text-indigo-300 border border-indigo-500/40 transition-all flex items-center gap-1.5 cursor-pointer" title="Approve this and all subsequent file moves in this operation">
                     <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Approve All
                 </button>
-                <button id="btn-confirm-approval" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-1.5">
+                <button id="btn-confirm-approval" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-1.5 cursor-pointer">
                     <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Approve
                 </button>
             </div>
@@ -874,8 +928,8 @@
     </div>
 
     <!-- ── Template Gallery Modal ──────────────────────────────────────────── -->
-    <div id="templates-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
-        <div class="modal-container w-full max-w-3xl bg-[#0E1526] border border-slate-700/80 rounded-2xl shadow-2xl p-6 relative max-h-[85vh] flex flex-col">
+    <div id="templates-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-3xl mx-auto bg-[#0E1526] border border-slate-700/80 rounded-2xl shadow-2xl p-4 sm:p-6 relative max-h-[85vh] flex flex-col">
             <button id="btn-close-templates-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -888,15 +942,15 @@
                 </p>
             </div>
 
-            <div id="templates-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-y-auto pr-1">
+            <div id="templates-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto pr-1">
                 <!-- Populated dynamically via app.js -->
             </div>
         </div>
     </div>
 
     <!-- ── Save Location Preference Modal ───────────────────────────────────── -->
-    <div id="save-location-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
-        <div class="modal-container w-full max-w-md bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-6 relative">
+    <div id="save-location-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-md mx-auto bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <button id="btn-close-save-location-modal" onclick="window.DeskPilotApp.closeSaveLocationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -948,10 +1002,10 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-2">
-                <button onclick="window.DeskPilotApp.closeSaveLocationModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200">
+                <button onclick="window.DeskPilotApp.closeSaveLocationModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">
                     Cancel
                 </button>
-                <button onclick="window.DeskPilotApp.saveLocationPreferencesSubmit()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5">
+                <button onclick="window.DeskPilotApp.saveLocationPreferencesSubmit()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer">
                     <i data-lucide="check" class="w-3.5 h-3.5"></i> Save Preference
                 </button>
             </div>
@@ -959,8 +1013,8 @@
     </div>
 
     <!-- ── System Storage & Health Diagnostics Modal ──────────────────────── -->
-    <div id="storage-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
-        <div class="modal-container w-full max-w-lg bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-6 relative max-h-[90vh] flex flex-col">
+    <div id="storage-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-lg mx-auto bg-[#0E1526] border border-indigo-500/40 rounded-2xl shadow-2xl p-4 sm:p-6 relative max-h-[90vh] flex flex-col">
             <button id="btn-close-storage-modal" onclick="window.DeskPilotApp.closeStorageModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -993,12 +1047,12 @@
                 </div>
 
                 <!-- Secondary Drives Grid -->
-                <div id="storage-modal-other-drives" class="grid grid-cols-2 gap-2">
+                <div id="storage-modal-other-drives" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <!-- Populated dynamically via app.js -->
                 </div>
 
                 <!-- Temp Files & Junk Cleaner Card -->
-                <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <div class="font-bold text-slate-200 flex items-center gap-1.5">
                             <i data-lucide="trash-2" class="w-4 h-4 text-amber-400"></i> Temporary Junk Cache (%TEMP%)
@@ -1007,35 +1061,35 @@
                             Occupying <strong id="storage-modal-temp-size" class="text-white font-mono">-- MB</strong> of disk space
                         </div>
                     </div>
-                    <button onclick="window.DeskPilotApp.triggerCleanTempFromModal()" class="px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs transition-all flex items-center gap-1">
+                    <button onclick="window.DeskPilotApp.triggerCleanTempFromModal()" class="px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs transition-all flex items-center gap-1 self-start sm:self-center cursor-pointer">
                         <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Clean Temp
                     </button>
                 </div>
 
                 <!-- Hardware Diagnostics Grid -->
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <div class="p-3 sm:p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-slate-400 font-medium">CPU Usage</span>
                             <span id="storage-modal-cpu-val" class="font-bold text-indigo-300 font-mono">--%</span>
                         </div>
                         <div class="text-[10px] text-slate-500 font-mono" id="storage-modal-cpu-cores">-- Cores</div>
                     </div>
-                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <div class="p-3 sm:p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-slate-400 font-medium">RAM Memory</span>
                             <span id="storage-modal-ram-val" class="font-bold text-indigo-300 font-mono">--%</span>
                         </div>
                         <div class="text-[10px] text-slate-500 font-mono" id="storage-modal-ram-details">-- / -- GB</div>
                     </div>
-                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <div class="p-3 sm:p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-slate-400 font-medium">Power / Battery</span>
                             <span id="storage-modal-battery-val" class="font-bold text-emerald-400 font-mono">100%</span>
                         </div>
                         <div class="text-[10px] text-slate-500 truncate" id="storage-modal-power-src">Desktop / AC</div>
                     </div>
-                    <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <div class="p-3 sm:p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-slate-400 font-medium">System Uptime</span>
                             <span id="storage-modal-uptime-val" class="font-bold text-indigo-300 font-mono">--</span>
@@ -1047,10 +1101,10 @@
 
             <!-- Modal Footer Actions -->
             <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
-                <button onclick="window.DeskPilotApp.askAgentDesktopScan()" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 font-medium">
+                <button onclick="window.DeskPilotApp.askAgentDesktopScan()" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 font-medium cursor-pointer">
                     <i data-lucide="scan" class="w-3.5 h-3.5"></i> Scan Desktop Files
                 </button>
-                <button onclick="window.DeskPilotApp.closeStorageModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all">
+                <button onclick="window.DeskPilotApp.closeStorageModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer">
                     Close
                 </button>
             </div>
@@ -1058,8 +1112,8 @@
     </div>
 
     <!-- ── Interactive Dynamic Agent Questionnaire / Clarification Modal ──── -->
-    <div id="dynamic-form-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden">
-        <div class="modal-container w-full max-w-lg bg-[#0E1526] border border-indigo-500/50 rounded-2xl shadow-2xl p-6 relative max-h-[90vh] flex flex-col">
+    <div id="dynamic-form-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-backdrop modal-hidden">
+        <div class="modal-container w-full max-w-lg mx-auto bg-[#0E1526] border border-indigo-500/50 rounded-2xl shadow-2xl p-4 sm:p-6 relative max-h-[90vh] flex flex-col">
             <!-- Header -->
             <div class="flex items-start gap-3.5 mb-4">
                 <div id="dynamic-form-icon-box" class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0">

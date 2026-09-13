@@ -2,61 +2,80 @@
  * Complementing Tailwind CSS for smooth animations, custom scrollbars, and card micro-interactions.
  */
 
-/* ── Global Typography & High Readability Scaling ──────────────────────── */
+/* ── Global Fluid Typography & Auto-Adjusting Responsive Scale ──────────── */
+:root {
+    /* Fluid base font: scales smoothly between 13px on small displays and 16.5px on large desktop monitors */
+    --base-font-size: clamp(13px, 0.45vw + 11.5px, 16.5px);
+}
+
 html {
-    font-size: 17px; /* Scaled up base size for high readability across all displays */
+    font-size: var(--base-font-size);
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
 }
 
+/* Responsive Breakpoints for Font Sizing */
+@media (max-width: 640px) {
+    html { font-size: 13px; }
+}
+@media (min-width: 641px) and (max-width: 1024px) {
+    html { font-size: 14px; }
+}
+@media (min-width: 1025px) and (max-width: 1440px) {
+    html { font-size: 15px; }
+}
+@media (min-width: 1441px) {
+    html { font-size: 16px; }
+}
+
 body {
     font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 0.95rem; /* ~16.2px body text */
+    font-size: 0.95rem;
     line-height: 1.6;
     letter-spacing: 0.01em;
 }
 
-/* Universal font size increases for readability */
+/* Proportional font sizing matching Tailwind scale cleanly */
 .text-\[9px\], .text-\[10px\] {
-    font-size: 0.78rem !important; /* ~13.3px instead of 9-10px */
-    line-height: 1.4 !important;
+    font-size: 0.72rem;
+    line-height: 1.35;
 }
 
 .text-\[11px\] {
-    font-size: 0.82rem !important; /* ~14px instead of 11px */
-    line-height: 1.45 !important;
+    font-size: 0.78rem;
+    line-height: 1.4;
 }
 
 .text-xs {
-    font-size: 0.88rem !important; /* ~15px instead of 12px */
-    line-height: 1.55 !important;
+    font-size: 0.84rem;
+    line-height: 1.5;
 }
 
 .text-sm {
-    font-size: 0.98rem !important; /* ~16.7px instead of 14px */
-    line-height: 1.6 !important;
+    font-size: 0.92rem;
+    line-height: 1.55;
 }
 
 .text-base {
-    font-size: 1.1rem !important; /* ~18.7px instead of 16px */
-    line-height: 1.6 !important;
+    font-size: 1.05rem;
+    line-height: 1.6;
 }
 
 .text-lg {
-    font-size: 1.25rem !important;
+    font-size: 1.2rem;
 }
 
 .text-xl {
-    font-size: 1.45rem !important;
+    font-size: 1.35rem;
 }
 
 .text-2xl {
-    font-size: 1.75rem !important;
+    font-size: 1.6rem;
 }
 
 /* Form inputs & textareas typography */
 input, textarea, select {
-    font-size: 0.95rem !important;
+    font-size: 0.92rem;
 }
 
 /* ── Custom Dark Scrollbars ────────────────────────────────────────────── */
@@ -525,44 +544,114 @@ input, textarea, select {
     font-weight: 600;
 }
 
-/* ── Element Readability Adjustments ───────────────────────────────────── */
+/* ── Element Fluid Readability Adjustments ──────────────────────────────── */
 .sidebar-link {
-    font-size: 0.95rem !important;
+    font-size: 0.92rem;
 }
 
 .agent-card h4 {
-    font-size: 1.05rem !important;
+    font-size: 1.02rem;
 }
 
 .agent-card p {
-    font-size: 0.9rem !important;
-    line-height: 1.55 !important;
+    font-size: 0.86rem;
+    line-height: 1.5;
 }
 
 #chat-input-textarea {
-    font-size: 1rem !important;
-    line-height: 1.6 !important;
+    font-size: 0.95rem;
+    line-height: 1.5;
 }
 
 .modal-container h3 {
-    font-size: 1.25rem !important;
+    font-size: 1.2rem;
 }
 
 .modal-container p {
-    font-size: 0.92rem !important;
-    line-height: 1.55 !important;
+    font-size: 0.88rem;
+    line-height: 1.5;
 }
 
 #top-alert-title {
-    font-size: 0.95rem !important;
+    font-size: 0.92rem;
 }
 
 #top-alert-msg {
-    font-size: 0.88rem !important;
+    font-size: 0.84rem;
 }
 
 #header-storage-pill {
-    font-size: 0.88rem !important;
+    font-size: 0.84rem;
+}
+
+/* ── Responsive Off-Canvas Navigation & Mobile Drawer Styles ──────────── */
+#app-sidebar {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#app-sidebar.sidebar-open {
+    transform: translateX(0) !important;
+    box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.85), 0 0 30px rgba(99, 102, 241, 0.2);
+}
+
+#sidebar-backdrop.active {
+    display: block !important;
+    opacity: 1;
+}
+
+/* ── Responsive Conversational Chat Sessions Drawer ───────────────────── */
+#chat-sessions-sidebar {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chat-sessions-sidebar.chat-sessions-open {
+    transform: translateX(0) !important;
+    box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.15);
+}
+
+#chat-sessions-backdrop.active {
+    display: block !important;
+    opacity: 1;
+}
+
+/* Word break protection for chat messages */
+.chat-bubble-user, .chat-bubble-assistant, .chat-markdown {
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* Horizontal scroll styling for suggestion chips */
+#chat-quick-suggestions::-webkit-scrollbar {
+    height: 3px;
+}
+
+/* ── Responsive Audit Table Wrapper ────────────────────────────────────── */
+.audit-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+.audit-table-wrapper table {
+    min-width: 620px;
+}
+
+/* ── Mobile Touch Targets & Micro Fine-Tuning ──────────────────────────── */
+@media (max-width: 640px) {
+    .agent-card {
+        padding: 1rem !important;
+    }
+    
+    .modal-container {
+        max-height: 94vh !important;
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        padding: 1.15rem !important;
+    }
+
+    button, a, input, select, textarea {
+        touch-action: manipulation;
+    }
 }
 
 

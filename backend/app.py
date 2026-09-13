@@ -41,7 +41,7 @@ def create_app_window(dev: bool = False):
         js_api=bridge,
         width=1280,
         height=820,
-        min_size=(1100, 700),
+        min_size=(420, 500),
         background_color="#0F172A",
     )
 
