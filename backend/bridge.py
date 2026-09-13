@@ -50,6 +50,11 @@ class DeskPilotBridge:
         # Wire trust approval hook to emit pywebview event
         set_approval_hook(self._on_approval_needed)
 
+        # Initialize and start Proactive Ambient Watcher Daemon
+        from backend.agent.ambient_watcher import AmbientWatcher
+        self.ambient_watcher = AmbientWatcher.get_instance(orchestrator=self.orchestrator)
+        self.ambient_watcher.start()
+
     def _on_orchestrator_log(self, text: str):
         emit_event("deskpilot:log", {"text": text})
 
@@ -864,4 +869,25 @@ class DeskPilotBridge:
             "success": True,
             "profiles": UserMemoryManager.get_all_profiles()
         }
+
+    # ── 9. Proactive Ambient Watcher Engine ────────────────────────────────────
+
+    def get_ambient_status(self) -> Dict[str, Any]:
+        """Returns the current background ambient monitoring status and pending pings."""
+        return self.ambient_watcher.get_status()
+
+    def toggle_ambient_watcher(self, enabled: bool) -> Dict[str, Any]:
+        """Enables or pauses the ambient background sweeps."""
+        res = self.ambient_watcher.toggle(enabled)
+        return {"success": True, "enabled": res}
+
+    def respond_to_proactive_ping(self, ping_id: str, approved: bool) -> Dict[str, Any]:
+        """Responds to an ambient proactive decision ping (1-click Approve or Dismiss)."""
+        return self.ambient_watcher.respond_to_ping(ping_id, approved)
+
+    def trigger_ambient_sweep(self) -> Dict[str, Any]:
+        """Manually triggers an immediate ambient sweep across Desktop workspace."""
+        pings = self.ambient_watcher.perform_sweep()
+        return {"success": True, "pings": pings, "count": len(pings)}
+
 

@@ -127,9 +127,11 @@ function initApp() {
             await loadRecentActivity();
             await loadSavePreferences();
             await loadStorageHeaderPill();
+            await loadAmbientHeaderPill();
             refreshLucide();
             // Periodic storage & diagnostics refresh
             setInterval(loadStorageHeaderPill, 45000);
+            setInterval(loadAmbientHeaderPill, 30000);
         } catch (err) {
             console.error("Dashboard initialization error:", err);
         }
@@ -2776,6 +2778,321 @@ function initApp() {
         handleDynamicFormRequest(e.detail);
     });
 
+    // ── 7.11 Proactive Ambient Watcher Engine UI Integration ─────────────────
+
+    let activeAmbientStatus = { enabled: true, is_running: true, pending_decisions: [] };
+    const displayedPings = new Set();
+
+    async function loadAmbientHeaderPill() {
+        try {
+            if (!window.DeskPilot || !window.DeskPilot.getAmbientStatus) return;
+            const status = await window.DeskPilot.getAmbientStatus();
+            if (status) {
+                activeAmbientStatus = status;
+                updateAmbientUI(status);
+                // Also load any existing pending decisions if app just refreshed
+                if (status.pending_decisions && Array.isArray(status.pending_decisions)) {
+                    status.pending_decisions.forEach(p => handleProactivePing(p));
+                }
+            }
+        } catch (e) {
+            console.debug("Could not load ambient status:", e);
+        }
+    }
+
+    function updateAmbientUI(status) {
+        const pill = document.getElementById('ambient-copilot-pill');
+        const dot = document.getElementById('ambient-pulse-dot');
+        const text = document.getElementById('ambient-status-text');
+
+        if (!pill || !dot || !text) return;
+
+        const isEnabled = status.enabled !== false && status.is_running !== false;
+        if (isEnabled) {
+            text.textContent = 'ACTIVE';
+            text.className = 'text-[10px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold';
+            dot.className = 'w-2 h-2 rounded-full bg-cyan-400 animate-pulse flex-shrink-0';
+            pill.className = 'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 hover:text-white hover:bg-cyan-500/20 text-xs font-medium transition-all cursor-pointer';
+        } else {
+            text.textContent = 'PAUSED';
+            text.className = 'text-[10px] px-1 py-0.5 rounded bg-slate-700 text-slate-400 font-mono font-bold';
+            dot.className = 'w-2 h-2 rounded-full bg-slate-500 flex-shrink-0';
+            pill.className = 'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-medium transition-all cursor-pointer';
+        }
+
+        // If modal is open, refresh modal view
+        renderAmbientModalDetails(status);
+    }
+
+    async function openAmbientModal() {
+        const modal = document.getElementById('ambient-modal');
+        if (!modal) return;
+        modal.classList.remove('modal-hidden');
+
+        try {
+            if (window.DeskPilot && window.DeskPilot.getAmbientStatus) {
+                const status = await window.DeskPilot.getAmbientStatus();
+                if (status) {
+                    activeAmbientStatus = status;
+                    renderAmbientModalDetails(status);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch ambient status for modal:", e);
+        }
+        refreshLucide();
+    }
+
+    function closeAmbientModal() {
+        const modal = document.getElementById('ambient-modal');
+        if (modal) modal.classList.add('modal-hidden');
+    }
+
+    function renderAmbientModalDetails(status) {
+        if (!status) return;
+        const stateEl = document.getElementById('ambient-modal-state');
+        const badgeEl = document.getElementById('ambient-modal-badge');
+        const pendingCountEl = document.getElementById('ambient-modal-pending-count');
+        const lastSweepEl = document.getElementById('ambient-modal-last-sweep');
+        const toggleBtn = document.getElementById('ambient-toggle-btn');
+        const pingsList = document.getElementById('ambient-modal-pings-list');
+
+        const isEnabled = status.enabled !== false && status.is_running !== false;
+
+        if (stateEl) {
+            stateEl.innerHTML = isEnabled
+                ? '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Active'
+                : '<span class="w-2 h-2 rounded-full bg-slate-500"></span> Paused';
+        }
+
+        if (badgeEl) {
+            badgeEl.textContent = isEnabled ? 'MONITORING' : 'PAUSED';
+            badgeEl.className = isEnabled
+                ? 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase'
+                : 'text-[10px] font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-400 border border-slate-600 uppercase';
+        }
+
+        if (pendingCountEl) {
+            const count = status.pending_decisions_count !== undefined ? status.pending_decisions_count : (status.pending_decisions ? status.pending_decisions.length : 0);
+            pendingCountEl.textContent = `${count} ${count === 1 ? 'action' : 'actions'}`;
+        }
+
+        if (lastSweepEl) {
+            if (status.last_sweep_time) {
+                const d = new Date(status.last_sweep_time);
+                lastSweepEl.textContent = isNaN(d.getTime()) ? status.last_sweep_time : d.toLocaleTimeString();
+            } else {
+                lastSweepEl.textContent = 'Awaiting first sweep...';
+            }
+        }
+
+        if (toggleBtn) {
+            toggleBtn.innerHTML = isEnabled
+                ? '<i data-lucide="pause-circle" class="w-3.5 h-3.5"></i> Pause Monitoring'
+                : '<i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Resume Monitoring';
+        }
+
+        if (pingsList) {
+            const pings = status.pending_decisions || [];
+            if (pings.length === 0) {
+                pingsList.innerHTML = '<p class="text-slate-500 italic py-2 text-center bg-slate-900/40 rounded-xl border border-slate-800/50">No pending decisions. Your workspace is currently clean and optimal.</p>';
+            } else {
+                pingsList.innerHTML = pings.map(p => `
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-amber-500/30 flex items-start justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <span class="font-bold text-amber-300 block truncate">${escapeHtml(p.title || 'Decision Needed')}</span>
+                            <p class="text-[11px] text-slate-300 mt-0.5">${escapeHtml(p.message || '')}</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <button onclick="window.DeskPilotApp.respondToProactivePing('${p.id}', false)" class="px-2 py-1 rounded-lg text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer">
+                                Dismiss
+                            </button>
+                            <button onclick="window.DeskPilotApp.respondToProactivePing('${p.id}', true)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors cursor-pointer">
+                                Approve
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+        refreshLucide();
+    }
+
+    async function toggleAmbientWatcher() {
+        try {
+            const nextState = !(activeAmbientStatus.enabled !== false && activeAmbientStatus.is_running !== false);
+            await window.DeskPilot.toggleAmbientWatcher(nextState);
+            activeAmbientStatus.enabled = nextState;
+            updateAmbientUI(activeAmbientStatus);
+            showToast(nextState ? 'Ambient Copilot resumed' : 'Ambient Copilot paused', 'info');
+        } catch (e) {
+            console.error('Error toggling ambient watcher:', e);
+            showToast('Error toggling ambient copilot: ' + e.message, 'error');
+        }
+    }
+
+    async function triggerAmbientSweepNow() {
+        try {
+            showToast('Running workspace sweep...', 'info');
+            const res = await window.DeskPilot.triggerAmbientSweep();
+            if (res && res.success) {
+                const count = res.count !== undefined ? res.count : (res.pings ? res.pings.length : 0);
+                if (count > 0) {
+                    showToast(`Sweep completed: ${count} suggested actions found`, 'warning');
+                } else {
+                    showToast('Sweep completed: Desktop workspace is clean & optimal', 'success');
+                }
+                const st = await window.DeskPilot.getAmbientStatus();
+                if (st) {
+                    activeAmbientStatus = st;
+                    updateAmbientUI(st);
+                }
+            }
+        } catch (e) {
+            console.error('Error triggering ambient sweep:', e);
+            showToast('Error triggering sweep: ' + e.message, 'error');
+        }
+    }
+
+    function handleProactivePing(ping) {
+        if (!ping || !ping.id) return;
+        if (displayedPings.has(ping.id)) return;
+        displayedPings.add(ping.id);
+
+        const container = document.getElementById('proactive-ping-container');
+        if (!container) return;
+
+        const cardId = `ping-card-${ping.id}`;
+        const existing = document.getElementById(cardId);
+        if (existing) return;
+
+        const card = document.createElement('div');
+        card.id = cardId;
+        card.className = 'proactive-card proactive-card-enter bg-[#0E1526]/95 border-2 border-amber-500/50 rounded-2xl shadow-2xl p-4 backdrop-blur-md relative';
+        card.innerHTML = `
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 uppercase tracking-wide border border-amber-500/30">Proactive Ping</span>
+                            <span class="text-[11px] text-slate-400 font-medium truncate">${escapeHtml(ping.agent_name || 'Personal Assistant')}</span>
+                        </div>
+                        <button onclick="window.DeskPilotApp.respondToProactivePing('${ping.id}', false)" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer" title="Dismiss">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <h4 class="font-bold text-white text-sm mt-1.5 leading-snug">${escapeHtml(ping.title || 'Action Suggested')}</h4>
+                    <p class="text-xs text-slate-300 mt-1 leading-relaxed">${escapeHtml(ping.message || '')}</p>
+                    <div class="mt-3 flex items-center justify-end gap-2" id="ping-actions-${ping.id}">
+                        <button onclick="window.DeskPilotApp.respondToProactivePing('${ping.id}', false)" class="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+                            Dismiss
+                        </button>
+                        <button onclick="window.DeskPilotApp.respondToProactivePing('${ping.id}', true)" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            <span>${escapeHtml(ping.action_text || 'Approve & Run')}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(card);
+        refreshLucide();
+
+        // Update modal if open
+        if (window.DeskPilot && window.DeskPilot.getAmbientStatus) {
+            window.DeskPilot.getAmbientStatus().then(updateAmbientUI).catch(() => {});
+        }
+    }
+
+    async function respondToProactivePing(pingId, approved) {
+        const actionsDiv = document.getElementById(`ping-actions-${pingId}`);
+
+        if (approved && actionsDiv) {
+            actionsDiv.innerHTML = `
+                <div class="flex items-center gap-2 text-xs text-amber-400 font-semibold py-1">
+                    <span class="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></span>
+                    <span>Executing autonomous action...</span>
+                </div>
+            `;
+        }
+
+        try {
+            await window.DeskPilot.respondToProactivePing(pingId, approved);
+            if (approved) {
+                showToast('Action approved! Autonomous agent launched in background.', 'success');
+            } else {
+                showToast('Suggestion dismissed.', 'info');
+                dismissPingCard(pingId);
+            }
+        } catch (e) {
+            console.error('Error responding to proactive ping:', e);
+            showToast('Error: ' + e.message, 'error');
+            dismissPingCard(pingId);
+        }
+    }
+
+    function dismissPingCard(pingId) {
+        displayedPings.delete(pingId);
+        const card = document.getElementById(`ping-card-${pingId}`);
+        if (!card) return;
+        card.classList.remove('proactive-card-enter');
+        card.classList.add('proactive-card-exit');
+        setTimeout(() => {
+            if (card.parentNode) card.parentNode.removeChild(card);
+        }, 260);
+
+        if (window.DeskPilot && window.DeskPilot.getAmbientStatus) {
+            window.DeskPilot.getAmbientStatus().then(updateAmbientUI).catch(() => {});
+        }
+    }
+
+    // Ambient Event Bus Listeners
+    window.addEventListener('deskpilot:ambient_pulse', (e) => {
+        const dot = document.getElementById('ambient-pulse-dot');
+        if (dot) {
+            dot.classList.add('scale-150');
+            setTimeout(() => dot.classList.remove('scale-150'), 400);
+        }
+        if (activeAmbientStatus) {
+            activeAmbientStatus.last_sweep_time = e.detail?.timestamp || new Date().toISOString();
+            const lastSweepEl = document.getElementById('ambient-modal-last-sweep');
+            if (lastSweepEl) {
+                const d = new Date(activeAmbientStatus.last_sweep_time);
+                lastSweepEl.textContent = isNaN(d.getTime()) ? activeAmbientStatus.last_sweep_time : d.toLocaleTimeString();
+            }
+        }
+    });
+
+    window.addEventListener('deskpilot:ambient_status', (e) => {
+        if (e.detail) {
+            activeAmbientStatus = e.detail;
+            updateAmbientUI(e.detail);
+        }
+    });
+
+    window.addEventListener('deskpilot:proactive_ping', (e) => {
+        handleProactivePing(e.detail);
+    });
+
+    window.addEventListener('deskpilot:proactive_dismissed', (e) => {
+        if (e.detail?.id) dismissPingCard(e.detail.id);
+    });
+
+    window.addEventListener('deskpilot:proactive_complete', (e) => {
+        if (e.detail?.ping_id) dismissPingCard(e.detail.ping_id);
+        showToast(`Proactive Task Complete: ${e.detail?.summary || 'Workspace updated'}`, 'success');
+        loadRecentActivity();
+    });
+
+    window.addEventListener('deskpilot:proactive_failed', (e) => {
+        if (e.detail?.ping_id) dismissPingCard(e.detail.ping_id);
+        showToast(`Proactive Task Error: ${e.detail?.error || 'Action failed'}`, 'error');
+    });
+
     // Export methods for inline HTML onclick handlers
     window.DeskPilotApp = {
         openTaskModal,
@@ -2796,6 +3113,12 @@ function initApp() {
         dismissTopAlert,
         showTopAlert,
         loadStorageHeaderPill,
+        loadAmbientHeaderPill,
+        openAmbientModal,
+        closeAmbientModal,
+        toggleAmbientWatcher,
+        triggerAmbientSweepNow,
+        respondToProactivePing,
         switchView,
         toggleSidebar,
         toggleChatSessions,
@@ -2881,6 +3204,7 @@ function initApp() {
         console.log("pywebviewready event caught in app.js, refreshing dashboard...");
         loadAgents();
         loadRecentActivity();
+        loadAmbientHeaderPill();
     });
 }
 

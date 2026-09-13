@@ -328,6 +328,36 @@ def set_save_preferences_endpoint():
     return jsonify(res)
 
 
+# ── Proactive Ambient Watcher Endpoints ───────────────────────────────────────
+
+@app.route("/api/ambient/status", methods=["GET"])
+def get_ambient_status_route():
+    return jsonify(bridge.get_ambient_status())
+
+
+@app.route("/api/ambient/toggle", methods=["POST"])
+def toggle_ambient_route():
+    data = request.get_json() or {}
+    enabled = bool(data.get("enabled", True))
+    return jsonify(bridge.toggle_ambient_watcher(enabled))
+
+
+@app.route("/api/ambient/respond", methods=["POST"])
+def respond_ambient_route():
+    data = request.get_json() or {}
+    ping_id = data.get("ping_id")
+    approved = bool(data.get("approved", False))
+    if not ping_id:
+        return jsonify({"success": False, "error": "Missing ping_id"}), 400
+    return jsonify(bridge.respond_to_proactive_ping(ping_id, approved))
+
+
+@app.route("/api/ambient/sweep", methods=["POST"])
+def trigger_ambient_sweep_route():
+    return jsonify(bridge.trigger_ambient_sweep())
+
+
+
 # ── Server Runner ─────────────────────────────────────────────────────────────
 
 def run_server(host: Optional[str] = None, port: Optional[int] = None):

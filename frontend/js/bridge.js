@@ -256,6 +256,22 @@ class DeskPilotBridgeClient {
                     })).json();
                 case 'get_user_profile':
                     return await (await fetch(`${base}/user/profile?category=${encodeURIComponent(args[0] || 'all')}`)).json();
+                case 'get_ambient_status':
+                    return await (await fetch(`${base}/ambient/status`)).json();
+                case 'toggle_ambient_watcher':
+                    return await (await fetch(`${base}/ambient/toggle`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enabled: args[0] !== false })
+                    })).json();
+                case 'respond_to_proactive_ping':
+                    return await (await fetch(`${base}/ambient/respond`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ping_id: args[0], approved: !!args[1] })
+                    })).json();
+                case 'trigger_ambient_sweep':
+                    return await (await fetch(`${base}/ambient/sweep`, { method: 'POST' })).json();
                 default:
                     console.warn(`Unhandled HTTP API method: ${method}`);
                     return null;
@@ -336,6 +352,18 @@ class DeskPilotBridgeClient {
             }, 300);
 
             return { success: true, session_id: sessionId, status: 'processing' };
+        }
+        if (method === 'get_ambient_status') {
+            return { is_running: true, enabled: true, interval_seconds: 60, last_sweep_time: new Date().toISOString(), pending_decisions_count: 0, pending_decisions: [] };
+        }
+        if (method === 'toggle_ambient_watcher') {
+            return { success: true, enabled: args[0] !== false };
+        }
+        if (method === 'respond_to_proactive_ping') {
+            return { success: true, ping_id: args[0], approved: !!args[1] };
+        }
+        if (method === 'trigger_ambient_sweep') {
+            return { success: true, pings: [], count: 0 };
         }
         return null;
     }
@@ -462,6 +490,24 @@ class DeskPilotBridgeClient {
 
     async getUserProfile(category = 'all') {
         return await this._call('get_user_profile', category) || {};
+    }
+
+    // ── Proactive Ambient Watcher ─────────────────────────────────────────────
+
+    async getAmbientStatus() {
+        return await this._call('get_ambient_status') || { enabled: false, is_running: false, pending_decisions: [] };
+    }
+
+    async toggleAmbientWatcher(enabled = true) {
+        return await this._call('toggle_ambient_watcher', enabled);
+    }
+
+    async respondToProactivePing(pingId, approved = true) {
+        return await this._call('respond_to_proactive_ping', pingId, approved);
+    }
+
+    async triggerAmbientSweep() {
+        return await this._call('trigger_ambient_sweep');
     }
 
     // ── Event Bus ─────────────────────────────────────────────────────────────
