@@ -365,6 +365,34 @@ class DeskPilotBridgeClient {
         if (method === 'trigger_ambient_sweep') {
             return { success: true, pings: [], count: 0 };
         }
+        if (method === 'get_storage_summary') {
+            return {
+                success: true,
+                c_free_gb: 142.5,
+                c_total_gb: 512.0,
+                c_used_gb: 369.5,
+                c_used_pct: 72.2,
+                c_free_pct: 27.8,
+                is_low: false,
+                temp_size_str: '185 MB',
+                drives: [{ mountpoint: 'C:\\', total_gb: 512.0, used_gb: 369.5, free_gb: 142.5, percent: 72.2 }]
+            };
+        }
+        if (method === 'get_system_diagnostics') {
+            return {
+                success: true,
+                cpu_pct: 14.2,
+                cpu_cores: 8,
+                ram_total_gb: 16.0,
+                ram_used_gb: 7.8,
+                ram_free_gb: 8.2,
+                ram_pct: 48.7,
+                battery_pct: 100,
+                is_charging: true,
+                uptime_str: '2d 6h 34m',
+                os: 'Windows 11'
+            };
+        }
         return null;
     }
 

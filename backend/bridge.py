@@ -677,6 +677,10 @@ class DeskPilotBridge:
             logger.error(f"Error in get_system_diagnostics_summary: {e}")
             return {"success": False, "error": str(e)}
 
+    def get_system_diagnostics(self) -> Dict[str, Any]:
+        """Alias for get_system_diagnostics_summary matching frontend bridge."""
+        return self.get_system_diagnostics_summary()
+
 
     # ── 6.5. Save Location Preferences ────────────────────────────────────────
 

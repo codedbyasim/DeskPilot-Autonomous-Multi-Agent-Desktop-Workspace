@@ -2414,12 +2414,15 @@ function initApp() {
         modal.classList.remove('modal-hidden');
 
         try {
-            const [storage, diag] = await Promise.all([
+            const [storageRes, diagRes] = await Promise.allSettled([
                 window.DeskPilot.getStorageSummary(),
                 window.DeskPilot.getSystemDiagnostics()
             ]);
 
-            if (storage && storage.success) {
+            const storage = storageRes.status === 'fulfilled' ? storageRes.value : null;
+            const diag = diagRes.status === 'fulfilled' ? diagRes.value : null;
+
+            if (storage && storage.success !== false) {
                 currentStorageData = storage;
                 const cUsed = document.getElementById('storage-modal-c-used');
                 const cPct = document.getElementById('storage-modal-c-pct');
@@ -2427,11 +2430,11 @@ function initApp() {
                 const cBar = document.getElementById('storage-modal-c-bar');
                 const cBadge = document.getElementById('storage-modal-c-badge');
 
-                if (cUsed) cUsed.textContent = `${storage.c_used_gb} GB`;
-                if (cPct) cPct.textContent = `${storage.c_used_pct}%`;
-                if (cFree) cFree.textContent = `${storage.c_free_gb} GB`;
+                if (cUsed) cUsed.textContent = `${storage.c_used_gb !== undefined ? storage.c_used_gb : 0} GB`;
+                if (cPct) cPct.textContent = `${storage.c_used_pct !== undefined ? storage.c_used_pct : 0}%`;
+                if (cFree) cFree.textContent = `${storage.c_free_gb !== undefined ? storage.c_free_gb : 0} GB`;
                 if (cBar) {
-                    cBar.style.width = `${Math.min(100, storage.c_used_pct)}%`;
+                    cBar.style.width = `${Math.min(100, storage.c_used_pct || 50)}%`;
                     if (storage.is_low) {
                         cBar.className = "bg-gradient-to-r from-amber-500 to-rose-500 h-full rounded-full transition-all duration-500";
                     } else {
@@ -2470,7 +2473,7 @@ function initApp() {
                 }
             }
 
-            if (diag && diag.success) {
+            if (diag && diag.success !== false) {
                 const cpuVal = document.getElementById('storage-modal-cpu-val');
                 const cpuCores = document.getElementById('storage-modal-cpu-cores');
                 const ramVal = document.getElementById('storage-modal-ram-val');
@@ -2480,11 +2483,11 @@ function initApp() {
                 const uptimeVal = document.getElementById('storage-modal-uptime-val');
                 const osName = document.getElementById('storage-modal-os-name');
 
-                if (cpuVal) cpuVal.textContent = `${diag.cpu_pct}%`;
-                if (cpuCores) cpuCores.textContent = `${diag.cpu_cores} Logical Cores`;
-                if (ramVal) ramVal.textContent = `${diag.ram_pct}%`;
-                if (ramDetails) ramDetails.textContent = `${diag.ram_used_gb} / ${diag.ram_total_gb} GB`;
-                if (batteryVal) batteryVal.textContent = diag.battery_pct !== null ? `${diag.battery_pct}%` : 'AC Wall Power';
+                if (cpuVal) cpuVal.textContent = `${diag.cpu_pct !== undefined ? diag.cpu_pct : 0}%`;
+                if (cpuCores) cpuCores.textContent = `${diag.cpu_cores || 1} Logical Cores`;
+                if (ramVal) ramVal.textContent = `${diag.ram_pct !== undefined ? diag.ram_pct : 0}%`;
+                if (ramDetails) ramDetails.textContent = `${diag.ram_used_gb || 0} / ${diag.ram_total_gb || 0} GB`;
+                if (batteryVal) batteryVal.textContent = (diag.battery_pct !== null && diag.battery_pct !== undefined) ? `${diag.battery_pct}%` : 'AC Wall Power';
                 if (powerSrc) powerSrc.textContent = diag.is_charging ? 'Desktop / Continuous AC' : 'On Battery';
                 if (uptimeVal) uptimeVal.textContent = diag.uptime_str || '--';
                 if (osName) osName.textContent = diag.os || 'Windows';
@@ -2972,12 +2975,18 @@ function initApp() {
         const container = document.getElementById('proactive-ping-container');
         if (!container) return;
 
+        // Prevent stacking duplicate cards of the same issue type
+        if (ping.type && container.querySelector(`[data-ping-type="${ping.type}"]`)) {
+            return;
+        }
+
         const cardId = `ping-card-${ping.id}`;
         const existing = document.getElementById(cardId);
         if (existing) return;
 
         const card = document.createElement('div');
         card.id = cardId;
+        card.setAttribute('data-ping-type', ping.type || '');
         card.className = 'proactive-card proactive-card-enter bg-[#0E1526]/95 border-2 border-amber-500/50 rounded-2xl shadow-2xl p-4 backdrop-blur-md relative';
         card.innerHTML = `
             <div class="flex items-start gap-3">
