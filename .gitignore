@@ -41,6 +41,9 @@ chats/
 DeskPilot_Output/
 output/
 
+# Custom user-created agents (Keep repo clean with only default agents and templates)
+agents/custom_*.json
+
 # IDE and Editor configurations
 .vscode/
 .idea/

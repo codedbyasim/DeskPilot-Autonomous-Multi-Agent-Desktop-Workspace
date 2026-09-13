@@ -48,6 +48,61 @@ def _thin_border() -> Border:
     return Border(left=thin, right=thin, top=thin, bottom=thin)
 
 
+def _get_currency_format(header: str, currency_override: str = "") -> str:
+    """
+    Determines appropriate Excel number_format based on column header and user currency.
+    Avoids hardcoding '$' when the user or header uses PKR, EUR, GBP, INR, etc.
+    """
+    h = (header or "").strip()
+    h_lower = h.lower()
+
+    # 1. Detect currency code from header text or override
+    curr = currency_override.strip().upper() if currency_override else ""
+    if not curr:
+        for c in ["pkr", "rs", "inr", "eur", "gbp", "cad", "aud", "aed", "sar", "usd", "jpy"]:
+            if c in h_lower:
+                curr = c.upper()
+                break
+        if "€" in h: curr = "EUR"
+        elif "£" in h: curr = "GBP"
+        elif "₹" in h: curr = "INR"
+        elif "$" in h: curr = "USD"
+
+    # 2. If still not detected, inspect user profile memory
+    if not curr:
+        try:
+            from backend.utils.user_memory import UserMemoryManager
+            fin_prof = UserMemoryManager.get_profile("finance")
+            glob_prof = UserMemoryManager.get_profile("global")
+            curr = (fin_prof.get("currency") or glob_prof.get("currency") or "").strip().upper()
+        except Exception:
+            curr = ""
+
+    # 3. Check if unit is already explicitly stated in header parentheses (e.g. "Amount (PKR)", "Cost (EUR)")
+    has_unit_in_header = bool(re.search(r'\([a-zA-Z$€£₹.\s]+\)', h))
+
+    # If the column header already has the currency (e.g. "Amount (PKR)"), standard practice is plain clean numbers
+    if has_unit_in_header:
+        return "#,##0.00"
+
+    # Format according to detected currency
+    if curr in ("PKR", "RS", "RS."):
+        return '"Rs. " #,##0.00'
+    elif curr in ("EUR", "€"):
+        return '€#,##0.00'
+    elif curr in ("GBP", "£"):
+        return '£#,##0.00'
+    elif curr in ("INR", "₹"):
+        return '₹#,##0.00'
+    elif curr in ("USD", "$"):
+        return '$#,##0.00'
+    elif curr:
+        return f'"{curr} " #,##0.00'
+
+    # If no currency detected, only use $ if $ is explicitly in header; otherwise plain number
+    return '$#,##0.00' if '$' in h else '#,##0.00'
+
+
 def _clean_html_entities(s: str) -> str:
     """Unescapes HTML character entities like &#91; ([), &#93; (]), &quot;, &#39;, &amp;."""
     if not isinstance(s, str):
@@ -407,11 +462,12 @@ def create_excel_workbook(
                 cell.alignment = Alignment(vertical="center")
 
                 # Numeric formatting
-                col_name_lower = header_list[col_idx - 1].lower()
-                is_currency = any(kw in col_name_lower for kw in ["$", "amount", "budget", "actual", "cost", "salary", "price", "total", "variance", "income", "expense"])
+                col_name = header_list[col_idx - 1]
+                col_name_lower = col_name.lower()
+                is_currency = any(kw in col_name_lower for kw in ["$", "amount", "budget", "actual", "cost", "salary", "price", "total", "variance", "income", "expense", "pkr", "eur", "gbp", "inr", "usd"])
 
                 if isinstance(value, (int, float)):
-                    cell.number_format = "$#,##0.00" if is_currency else "#,##0.00"
+                    cell.number_format = _get_currency_format(col_name) if is_currency else "#,##0.00"
                     cell.alignment = Alignment(horizontal="right", vertical="center")
             current_row += 1
 
@@ -436,9 +492,10 @@ def create_excel_workbook(
                     total_cell = ws.cell(row=totals_row, column=col_idx, value=formula)
                     total_cell.font = Font(bold=True)
                     total_cell.fill = PatternFill("solid", fgColor=BLUE_LIGHT)
-                    col_name_lower = header_list[col_idx - 1].lower()
-                    is_currency = any(kw in col_name_lower for kw in ["$", "amount", "budget", "actual", "cost", "salary", "price", "total", "variance", "income", "expense"])
-                    total_cell.number_format = "$#,##0.00" if is_currency else "#,##0.00"
+                    col_name = header_list[col_idx - 1]
+                    col_name_lower = col_name.lower()
+                    is_currency = any(kw in col_name_lower for kw in ["$", "amount", "budget", "actual", "cost", "salary", "price", "total", "variance", "income", "expense", "pkr", "eur", "gbp", "inr", "usd"])
+                    total_cell.number_format = _get_currency_format(col_name) if is_currency else "#,##0.00"
                     total_cell.alignment = Alignment(horizontal="right", vertical="center")
                     total_cell.border = border
                 else:

@@ -120,8 +120,18 @@ class UserMemoryManager:
     def save_profile_data(cls, category_or_agent_id: str, new_fields: Dict[str, Any]) -> Dict[str, Any]:
         """
         Merges new fields into the specified profile section and writes to user_profiles.json.
+        Intelligently routes domain keys (sleep, diet, budget, work) even if category was generic.
         """
         cat_key = cls._normalize_category(category_or_agent_id)
+        if cat_key == "global" and new_fields:
+            field_keys = [str(k).lower() for k in new_fields.keys()]
+            if any(k in field_keys for k in ["bedtime", "wakeup_time", "sleep_quality", "sleep_environment", "pre_sleep_routine", "allergies", "fitness_goal", "daily_steps_target", "daily_activity"]):
+                cat_key = "health"
+            elif any(k in field_keys for k in ["income", "income_sources", "fixed_expenses", "variable_expenses", "savings_goals", "monthly_savings_goal", "currency"]):
+                cat_key = "finance"
+            elif any(k in field_keys for k in ["user_role", "team_size", "favorite_editor", "job_title", "company"]):
+                cat_key = "work"
+
         with _memory_lock:
             data = cls._ensure_file_exists()
             if cat_key not in data or not isinstance(data[cat_key], dict):
@@ -199,7 +209,11 @@ class UserMemoryManager:
             lines.append("No prior user background has been recorded yet.")
             lines.append("(If your domain requires critical user background or onboarding details, or if you face any ambiguity, invoke the 'ask_user_form' tool to prompt the user with a custom popup form).")
         else:
-            lines.append("Use the details above to personalize all answers, advice, calculations, and documents.")
+            lines.append("CRITICAL OPERATING RULES WITH USER CONTEXT:")
+            lines.append("• Use the details above to personalize all answers, advice, calculations, and documents.")
+            lines.append("• PREFERRED CURRENCY: If the user specified a currency (e.g. PKR, EUR, GBP, INR), ALWAYS use that exact currency and symbol. NEVER replace it with US dollars ($).")
+            lines.append("• NUMERIC AMOUNTS: If the user's responses contain qualitative descriptions where numbers are needed (e.g., income source is 'pocket money', expense is 'lunch'), DO NOT assume 0. Ask the user in chat for the numerical amounts.")
+            lines.append("• CHAT FIRST: Give all plans, advice, tables, and answers in the chat window. Only generate physical files (.xlsx, .docx) when the user explicitly says to create or export a file.")
             lines.append("(If you ever need clarification, missing details, or updated preferences, invoke 'ask_user_form').")
 
         lines.append("===========================================")

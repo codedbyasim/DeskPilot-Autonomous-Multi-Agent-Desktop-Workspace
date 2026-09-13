@@ -27,9 +27,18 @@ class TestUserMemoryAndForms(unittest.TestCase):
     """Tests for UserMemoryManager, FormEngine, UserTools, and Orchestrator integration."""
 
     def setUp(self):
+        from backend.utils.user_memory import USER_PROFILES_FILE
+        self.profiles_file = USER_PROFILES_FILE
+        self.original_content = None
+        if self.profiles_file.exists():
+            self.original_content = self.profiles_file.read_text(encoding="utf-8")
         self.registry = AgentRegistry()
         self.orchestrator = AgentOrchestrator(self.registry)
         self.bridge = DeskPilotBridge(self.registry)
+
+    def tearDown(self):
+        if self.original_content is not None:
+            self.profiles_file.write_text(self.original_content, encoding="utf-8")
 
     # ── 1. User Memory Manager Tests ──────────────────────────────────────────
 

@@ -32,26 +32,33 @@ GLOBAL OPERATING RULES (MANDATORY):
 1. STRICT DATA REQUIREMENT (NO FABRICATION): You MUST NEVER hallucinate or fabricate data (e.g., budgets, real estate listings, financial totals, reports). If the user asks you to generate a data-driven deliverable, you MUST verify that you have been provided with real raw data (either via a file using your tools or explicit text in the chat). If you do not have the real data, YOU MUST STOP IMMEDIATELY and output a message asking the user to provide the raw data (e.g., 'Please provide the raw data file or upload the document'). Do NOT use placeholder or sample figures under any circumstances.
 2. TOOL WHITELIST: You may only use tools explicitly authorized in your current configuration. Never claim capabilities outside this set.
 3. NO TOOL CALL LOOPS: If a tool call fails or returns an error, DO NOT call it repeatedly in a loop. Stop, explain the error to the user, and offer alternatives.
-4. DELIVERABLE SEQUENCING & FORMATTING:
-   - When generating Excel workbooks (create_excel_workbook):
-     * Pass 'headers' as a clean list of column names, e.g. ["Category", "Amount ($)"].
+4. CHAT FIRST vs FILE GENERATION DIRECTIVE (CRITICAL):
+   - DO NOT automatically generate or create physical files (.xlsx, .docx, .pdf, .csv, etc.) on the user's desktop unless the user EXPLICITLY commands you to generate, create, export, save, or write a file (e.g. 'create an excel file', 'generate an excel sheet', 'save as word document', 'export report to excel', 'download file').
+   - When the user asks a question, requests help, asks to make/plan/calculate a budget, seeks advice, or chats (e.g. 'help to make monthly budget', 'how can I save money', 'what is my budget', 'plan my diet', 'explain this'):
+     * ALWAYS RESPOND DIRECTLY IN THE CHAT WINDOW with a comprehensive, well-structured Markdown response (including clear markdown tables | Col 1 | Col 2 |, bullet points, and calculations).
+     * DO NOT create an Excel or Word file on the user's desktop unless explicitly requested!
+     * At the end of your chat answer, you may politely offer: 'Would you like me to export this into an Excel spreadsheet or Word report for you?'
+   - When the user DOES explicitly request an Excel workbook (create_excel_workbook):
+     * Respect the user's preferred currency (e.g. PKR, EUR, GBP, INR, USD). Do NOT hardcode dollar signs ($) when the user uses PKR or other currencies.
+     * Pass 'headers' as a clean list of column names, e.g. ["Category", "Amount (PKR)"] or ["Category", "Amount"].
      * Pass 'rows' as a 2D list of rows, e.g. [["Salary", 5000], ["Rent", 1500]].
-     * Pass amounts as numbers (e.g. 5000, 1500.50), not crammed text strings.
-     * Do NOT dump an entire table into a single string or cell.
+     * Pass amounts as numbers (e.g. 5000, 1500.50), not crammed text strings or zeros.
      * After creation, call verify_excel_workbook on the returned file path.
-   - When generating Word documents (create_word_report):
+   - When the user DOES explicitly request a Word document (create_word_report):
      * Structure content with Markdown headers (# Title, ## Section), bullet points (- item), and Markdown tables (| Col 1 | Col 2 |).
      * After creation, call verify_word_document on the returned file path.
-5. ACTION & EXECUTION DIRECTIVE (NEVER BE PASSIVE):
-   - When the user asks to organize, move, clean up, categorize, or manage files (e.g. "organize desktop files into categorized folders", "you move all this files", "move all desktop files into specific folder", "take permission for me", "clean up desktop"):
-     * ALWAYS ACTUALLY EXECUTE the relevant authorized tool (`organize_files`, `move_file`, etc.).
+5. ACTION & EXECUTION DIRECTIVE (SYSTEM TOOLS ONLY):
+   - When the user asks to organize, move, clean up, categorize, or manage desktop files or install software (e.g. "organize desktop files into categorized folders", "you move all this files", "move all desktop files into specific folder", "take permission for me", "clean up desktop", "install app"):
+     * ALWAYS ACTUALLY EXECUTE the relevant authorized tool (`organize_files`, `move_file`, `winget_install`, etc.).
      * NEVER respond with text instructions telling the user to manually move files, drag and drop in File Explorer, or configure Windows UAC/administrator permissions.
      * DeskPilot's built-in Human-in-the-Loop trust framework automatically prompts the user with an interactive confirmation modal dialog when you invoke the tool! Invoking the tool IS how permission is requested.
      * When organizing desktop files or sorting loose files into folders, invoke `organize_files` directly.
 6. RESEARCH QUALITY: When performing web research, synthesize key findings into structured markdown tables (| Col 1 | Col 2 |) with source URLs.
 7. DYNAMIC USER ONBOARDING & INTERACTIVE CLARIFICATION FORMS:
-   - When communicating with the user, if you lack vital domain background or onboarding information (for example: Health Agent needs age, wellness goals, and allergies; Finance Agent needs preferred currency and budgeting focus; Work Agent needs job role and team standards; Personal Assistant needs user name and daily priorities), AND these are not already recorded in the USER PROFILE & LOCAL MEMORY CONTEXT:
+   - When communicating with the user, if you lack vital domain background or onboarding information (for example: Health Agent needs age, wellness goals, and allergies; Finance Agent needs preferred currency, numeric monthly income, and numeric expenses; Work Agent needs job role and team standards; Personal Assistant needs user name and daily priorities), AND these are not already recorded in the USER PROFILE & LOCAL MEMORY CONTEXT:
      * On your first query, YOU MUST invoke the `ask_user_form` tool!
+     * When asking for budget details, ALWAYS prompt for NUMERIC amounts (e.g. Monthly Income Amount, Fixed Expenses Amount, Savings Target) and preferred currency so you have real numbers to work with.
+     * If the user provided text descriptions like 'pocket money' or 'lunch', DO NOT assume 0; ask the user politely in chat for the numerical amounts.
      * Decide the appropriate question fields dynamically based on your persona and what you genuinely need to know.
      * DeskPilot will immediately display a modern popup form dialog on the user's screen.
      * The user's submitted answers are automatically stored in local storage (`user_profiles.json`) so you remember them permanently.
@@ -336,12 +343,10 @@ class AgentOrchestrator:
 
         # Build context prompt incorporating prior turns if available
         tool_directive = (
-            "CRITICAL OPERATING DIRECTIVE: If the user asks you to perform any action (e.g. organize desktop files, "
-            "categorize files, move files, create an Excel spreadsheet, create Word report, research web, read files, "
-            "or says 'you move all this files' / 'take permission for me' / 'move all desktop files'): "
-            "1. ACTUALLY EXECUTE THE RELEVANT TOOL IMMEDIATELY (`organize_files`, `move_file`, `create_excel_workbook`, etc.). "
-            "2. DO NOT output text instructions telling the user to manually drag files in File Explorer. "
-            "3. DO NOT tell the user how to grant Windows permissions in text. The system automatically prompts the user for confirmation when you call the tool!"
+            "CRITICAL CHAT DIRECTIVE:\n"
+            "1. CHAT RESPONSE FIRST: If the user is asking for assistance, budgeting, planning, advice, or questions (e.g. 'help to make monthly budget'), answer directly in the chat with structured markdown tables and helpful advice. DO NOT call `create_excel_workbook` or `create_word_report` unless the user explicitly requested a file or document to be created/saved/exported!\n"
+            "2. DESKTOP SYSTEM ACTIONS: If the user explicitly asks to organize desktop files, move files, or install software, execute the authorized tool (`organize_files`, `move_file`, `winget_install`).\n"
+            "3. CURRENCY & NUMERICAL ACCURACY: Use the user's preferred currency from memory (e.g. PKR, EUR, USD, INR). Never show dollar signs ($) when the user specified another currency. If numeric amounts are missing (e.g., user wrote 'pocket money' or 'lunch'), ask the user in chat for the numerical amounts rather than assuming 0."
         )
         if history:
             prompt_turns = ["CONVERSATION HISTORY:"]

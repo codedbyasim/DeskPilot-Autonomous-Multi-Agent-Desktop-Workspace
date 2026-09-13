@@ -24,17 +24,22 @@ def ask_user_form(
     """
     Presents an interactive popup questionnaire or clarification form to the user in the desktop window at runtime.
     Use this:
-    1. On your very first query with a user if you lack critical background context (e.g., in medical/health: age, wellness goals, allergies; in finance: currency, budget targets; in work: job role, deliverable standards; in personal: user name, priorities).
+    1. On your very first query with a user if you lack critical background context (e.g., in medical/health: age, wellness goals, allergies; in finance: currency, numeric monthly income, numeric fixed/variable expenses, savings targets; in work: job role, deliverable standards; in personal: user name, priorities).
     2. Whenever you encounter confusion, ambiguous instructions, or need specific choices or parameters from the user during any task.
+
+    IMPORTANT GUIDELINES FOR FINANCIAL & BUDGETING QUESTIONS:
+    - ALWAYS ask for NUMERIC AMOUNTS (type: 'number' or clear monetary number prompts like 'Monthly Income (Amount in Numbers)', 'Fixed Monthly Expenses (Amount in Numbers)', 'Monthly Savings Goal (Amount in Numbers)') and preferred currency ('PKR', 'USD', 'EUR', 'INR', etc.).
+    - NEVER ask vague questions like 'income sources' or 'fixed expenses' that lead users to reply with text strings like 'pocket money' or 'lunch' when you need numerical figures for calculations.
+    - Set the 'category' argument appropriately: 'health' for wellness/sleep/health, 'finance' for budgeting/money/expenses, 'work' for career/projects, 'general' for general.
 
     The user's answers are automatically saved to local JSON storage (config/user_profiles.json) so you will remember them permanently across sessions.
 
     Args:
-        title: Short, friendly title for the popup modal (e.g. 'Personal Health Profile', 'Report Preferences', 'Task Clarification')
+        title: Short, friendly title for the popup modal (e.g. 'Personal Health Profile', 'Budget Details', 'Task Clarification')
         description: 1-2 sentence explanation of why this information is helpful for the user.
         fields: List of field objects (or JSON array string). Each field dictionary should have:
-            - 'id': Unique identifier string (e.g. 'user_name', 'age', 'fitness_goal', 'allergies')
-            - 'label': Clear question or prompt for the user (e.g. 'What is your current age?')
+            - 'id': Unique identifier string (e.g. 'user_name', 'age', 'monthly_income', 'currency')
+            - 'label': Clear question or prompt for the user (e.g. 'What is your monthly income amount?')
             - 'type': 'text' | 'number' | 'textarea' | 'select' | 'radio'
             - 'placeholder': (Optional) Example text shown inside the input box
             - 'options': (Optional, for 'select' or 'radio') List of choices
@@ -70,6 +75,16 @@ def ask_user_form(
                 "required": True
             }
         ]
+
+    # Auto-detect category if default 'general' was provided
+    if category.strip().lower() in ("general", "global"):
+        ctx_str = (title + " " + description + " " + " ".join(str(f.get("id", "")) + " " + str(f.get("label", "")) for f in clean_fields)).lower()
+        if any(k in ctx_str for k in ["sleep", "bedtime", "wakeup", "allergy", "health", "workout", "exercise", "weight", "diet", "doctor", "medical"]):
+            category = "health"
+        elif any(k in ctx_str for k in ["budget", "income", "expense", "salary", "savings", "currency", "spending", "finance", "money", "invoice"]):
+            category = "finance"
+        elif any(k in ctx_str for k in ["company", "role", "team", "colleague", "deliverable", "client", "work", "job"]):
+            category = "work"
 
     logger.info(f"Invoking ask_user_form: '{title}' ({len(clean_fields)} fields, category='{category}')")
     return request_user_form(
