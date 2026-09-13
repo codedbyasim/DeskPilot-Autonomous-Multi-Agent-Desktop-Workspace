@@ -23,6 +23,16 @@ function initApp() {
     let currentTaskFilter = 'all';
     let cachedTasks = [];
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     // Agent Color Themes matching PROJECT_BRIEF Section 6 & 7
     const COLOR_THEMES = {
         'green': {
